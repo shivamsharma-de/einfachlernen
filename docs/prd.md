@@ -21,7 +21,7 @@ Content is organised by CEFR level (A1 → C2). Users start at A1 and progress t
 
 - Teach language efficiently through a clear two-mode loop: learn then practice
 - Make daily practice feel like a game, not homework
-- Launch a polished, fully free MVP for German — no paywalls, no sign-up required to start
+- Launch a polished, fully free MVP for German — no paywalls
 - Build the data model to support multiple languages from the beginning
 
 ---
@@ -49,13 +49,13 @@ Both content types are tagged with CEFR level (A1–C2) and category (e.g. Greet
 ## 5. Feature Phases
 
 ### Phase 1 — MVP
-Core learning loop (flashcards + quiz), CEFR progression, local progress tracking. No auth required.
+Core learning loop (flashcards + quiz), auth (Google + email), CEFR progression, progress synced to Supabase.
 
-### Phase 2 — Accounts & Sync
-User accounts (email, Apple, Google), progress synced to Supabase, streak tracking, leaderboard.
+### Phase 2 — Growth
+Additional languages, streak tracking, leaderboard with live data, social sharing.
 
-### Phase 3 — Growth
-Additional languages, LLM-assisted explanations, audio pronunciation, premium tier.
+### Phase 3 — Scale
+LLM-assisted explanations, audio pronunciation, premium tier.
 
 ---
 
@@ -79,7 +79,27 @@ Additional languages, LLM-assisted explanations, audio pronunciation, premium ti
 
 ---
 
-### 6.2 Home Screen
+### 6.2 Authentication
+
+**User Stories**
+- As a new user, I want to sign up with my Google account so I don't have to create a new password
+- As a new user, I want to sign up with my email if I'd rather not use Google
+- As a returning user, I want to log in and have my progress restored automatically
+- As a user, I want my XP, mastery state, and streak synced to the cloud so I don't lose progress if I switch devices
+
+**Acceptance Criteria**
+- [ ] Google OAuth login (one-tap sign-in)
+- [ ] Email + password signup with verification email
+- [ ] Email + password login
+- [ ] Password reset via email
+- [ ] Session persists across app restarts (Supabase session token stored locally)
+- [ ] On first login after using the app as a guest, local progress (XP, mastery, SRS state) is migrated to the user's account
+- [ ] Logout available in settings
+- [ ] Auth is required before accessing the home screen (no anonymous usage)
+
+---
+
+### 6.3 Home Screen
 
 **User Stories**
 - As a user, I want to see my CEFR levels at a glance and pick one to study
@@ -96,7 +116,7 @@ Additional languages, LLM-assisted explanations, audio pronunciation, premium ti
 
 ---
 
-### 6.3 Flashcard Mode (Learn)
+### 6.4 Flashcard Mode (Learn)
 
 **User Stories**
 - As a user encountering a new word, I want to see it clearly with its article and meaning before being tested
@@ -114,7 +134,7 @@ Additional languages, LLM-assisted explanations, audio pronunciation, premium ti
 
 ---
 
-### 6.4 Quiz Mode (Practice)
+### 6.5 Quiz Mode (Practice)
 
 **User Stories**
 - As a user, I want to be tested on words I've already seen in flashcard mode
@@ -135,7 +155,7 @@ Additional languages, LLM-assisted explanations, audio pronunciation, premium ti
 
 ---
 
-### 6.5 Phrases Screen (Redemittel)
+### 6.6 Phrases Screen (Redemittel)
 
 **User Stories**
 - As a user, I want to browse common German expressions by category
@@ -149,7 +169,7 @@ Additional languages, LLM-assisted explanations, audio pronunciation, premium ti
 
 ---
 
-### 6.6 Leaderboard
+### 6.7 Leaderboard
 
 **User Stories**
 - As a user, I want to see how my XP compares to others so I stay motivated
@@ -161,20 +181,20 @@ Additional languages, LLM-assisted explanations, audio pronunciation, premium ti
 
 ---
 
-### 6.7 Progress Tracking (Local — MVP)
+### 6.8 Progress Tracking (Supabase — MVP)
 
 **Acceptance Criteria**
-- [ ] XP total persisted locally (AsyncStorage)
-- [ ] Per-word mastery status persisted locally
+- [ ] XP total synced to Supabase on session end
+- [ ] Per-word mastery and SRS state synced per session
 - [ ] Streak counter: consecutive days with at least one session completed
-- [ ] SRS next-review timestamps stored per word (SM-2 lite algorithm)
-- [ ] Progress resets only if user explicitly clears data (no accidental loss)
+- [ ] Local AsyncStorage used as a write-through cache; Supabase is the source of truth
+- [ ] On app open, pull latest progress from Supabase if network available; fall back to local cache offline
 
 ---
 
-### 6.8 Analytics (PostHog)
+### 6.9 Analytics (PostHog)
 
-PostHog is integrated from day one to understand real usage patterns. No PII is captured. The anonymous device ID is used as the distinct ID until Phase 2 accounts are added.
+PostHog is integrated from day one to understand real usage patterns. No PII is captured. The Supabase `user_id` is used as the PostHog distinct ID after login, so events are tied to real users from MVP launch.
 
 **Events to track**
 
@@ -199,7 +219,7 @@ PostHog is integrated from day one to understand real usage patterns. No PII is 
 
 ## 7. Out of Scope (MVP)
 
-- User accounts and cloud sync (Phase 2)
+- Apple ID / Sign in with Apple (Phase 2)
 - User-generated content
 - Push notifications
 - Web version
@@ -211,9 +231,11 @@ PostHog is integrated from day one to understand real usage patterns. No PII is 
 
 ### First Launch Flow
 ```
-App opens → Onboarding
-    → Step 1: Pick language (German)
-    → Step 2: Pick starting level (A1 / A2 / B1+)
+App opens → Auth screen (login / sign up)
+    → Google one-tap or email + password
+    → Onboarding (first time only)
+        → Step 1: Pick language (German)
+        → Step 2: Pick starting level (A1 / A2 / B1+)
     → Home screen
 ```
 
@@ -230,10 +252,10 @@ Home → Tap A1 → Flashcard mode
 
 ### Returning User Flow
 ```
-App opens → Home (shows XP + streak)
+App opens → Session restored from Supabase → Home (shows XP + streak)
     → SRS surfaces words due for review
     → User picks level → Quiz mode (known words)
-    → Summary → Home
+    → Summary → Progress synced to Supabase → Home
 ```
 
 ---
@@ -245,22 +267,28 @@ App opens → Home (shows XP + streak)
 | App launch time | < 2 seconds |
 | Animation frame rate | 60 fps |
 | Platform support | iOS 15+ and Android 10+ |
-| Offline | Fully functional offline (local data only in MVP) |
-| No auth required | User can learn without creating an account |
+| Offline | Playable offline using local cache; syncs to Supabase when back online |
+| Auth required | Users must be logged in; no anonymous usage |
 
 ---
 
 ## 10. MVP Launch Checklist
 
+- [ ] Supabase project created with schema deployed
+- [ ] Google OAuth configured in Supabase + app
+- [ ] Email + password auth with verification email
+- [ ] Auth screen (login / signup) built
+- [ ] Session persistence across restarts
 - [ ] Onboarding flow (language + level picker, first launch only)
 - [ ] Flashcard mode with TTS audio (Expo Speech, `de-DE`)
 - [ ] Quiz mode fully functional (hearts, XP, hints, SRS, TTS)
 - [ ] SRS algorithm (SM-2 lite) wired into both modes
+- [ ] Progress synced to Supabase on session end (XP, mastery, SRS state)
+- [ ] Offline fallback: local AsyncStorage cache used when no network
 - [ ] Phrases screen browsable and filterable
 - [ ] Leaderboard screen (mock data for MVP)
-- [ ] Local progress persistence (AsyncStorage)
 - [ ] CEFR level locking/unlocking logic
-- [ ] PostHog integrated — all session, answer, and navigation events firing
+- [ ] PostHog integrated with `posthog.identify(userId)` on login
 - [ ] A1 vocabulary and phrases data complete
 - [ ] A2 vocabulary and phrases data complete
 - [ ] EAS build configured (iOS + Android)

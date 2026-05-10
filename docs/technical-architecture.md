@@ -5,42 +5,41 @@
 
 ## 1. Overview
 
-A mobile-first language learning app built with Expo (React Native). The MVP runs entirely on-device with no backend: content is bundled as TypeScript data files and progress is stored in AsyncStorage. Supabase is added in Phase 2 for accounts and cloud sync.
+A mobile-first language learning app built with Expo (React Native). Auth (Google + email) and cloud progress sync via Supabase are part of the MVP. Content is bundled as TypeScript data files; user progress is written to Supabase and cached locally in AsyncStorage for offline play.
 
 German is the launch language. The data model is language-agnostic so other languages can be added as additional data files without code changes.
 
 ---
 
-## 2. Phase 1 Architecture (MVP — No Backend)
+## 2. Architecture
+
+### Phase 1 (MVP)
 
 ```
-┌──────────────────────────────────────────────┐
-│            Expo App (React Native)            │
-│          iOS (App Store) + Android            │
-│                                               │
-│  ┌─────────────┐   ┌──────────────────────┐  │
-│  │ Content Data │   │  AsyncStorage        │  │
-│  │ (bundled TS) │   │  (local progress,    │  │
-│  │ vocabulary   │   │   XP, mastery state) │  │
-│  │ redemittel   │   └──────────────────────┘  │
-│  └─────────────┘                              │
-└──────────────────────────────────────────────┘
+┌───────────────────────────────────────────────────┐
+│              Expo App (React Native)               │
+│            iOS (App Store) + Android               │
+│                                                    │
+│  ┌─────────────┐   ┌──────────────────────────┐   │
+│  │ Content Data │   │  AsyncStorage            │   │
+│  │ (bundled TS) │   │  (offline cache for      │   │
+│  │ vocabulary   │   │   XP, SRS state)         │   │
+│  │ redemittel   │   └──────────────────────────┘   │
+│  └─────────────┘                                   │
+└──────────────────┬────────────────────────────────┘
+                   │ HTTPS
+                   ▼
+       ┌──────────────────────┐
+       │       Supabase        │
+       │  Auth + PostgreSQL    │
+       │  Google OAuth + email │
+       │  Progress sync + RLS  │
+       └──────────────────────┘
 ```
 
-### Phase 2 Architecture (Accounts + Sync)
+### Phase 2 (Growth)
 
-```
-┌──────────────────────────────────────────────┐
-│            Expo App (React Native)            │
-└──────────────┬───────────────────────────────┘
-               │ HTTPS
-               ▼
-    ┌──────────────────────┐
-    │       Supabase        │
-    │  Auth + PostgreSQL    │
-    │  (user progress sync) │
-    └──────────────────────┘
-```
+Same architecture. Leaderboard goes live (reads from Supabase), social sharing added, additional languages added as new data files.
 
 ---
 
@@ -50,13 +49,13 @@ German is the launch language. The data model is language-agnostic so other lang
 |---|---|---|
 | Mobile Frontend | Expo 52 (React Native) | Single codebase for iOS + Android |
 | Navigation | Expo Router (file-based) | Tab + stack navigation |
-| Local Storage | AsyncStorage | XP, mastery state, streak, SRS timestamps — MVP |
+| Local Storage | AsyncStorage | Offline cache for XP, mastery, SRS state |
 | Content Data | Bundled TypeScript files | `data/vocabulary.ts`, `data/redemittel.ts` |
 | Audio (TTS) | expo-speech | Device TTS, locale `de-DE`, no assets needed |
 | Haptics | expo-haptics | Feedback on correct/wrong answers |
 | Analytics | PostHog (posthog-react-native) | Session, answer, and navigation events |
-| Auth (Phase 2) | Supabase Auth | Email, Apple ID, Google |
-| Database (Phase 2) | Supabase PostgreSQL + RLS | Cloud progress sync |
+| Auth | Supabase Auth | Google OAuth + email/password |
+| Database | Supabase PostgreSQL + RLS | User progress, mastery, SRS state |
 | CI/CD | GitHub Actions + EAS | Builds and store submission |
 | Distribution | Apple App Store + Google Play | |
 
@@ -183,7 +182,7 @@ export const track = (event: string, props?: Record<string, unknown>) =>
 | `hint_used` | `hint_type`, `xp_cost`, `word_id` |
 | `level_selected` | `level` |
 
-In Phase 2, call `posthog.identify(userId, { language, level })` on login to attach events to a user account.
+Call `posthog.identify(userId, { language, level })` immediately after Supabase login so all events are tied to a real user from day one.
 
 ---
 
@@ -277,9 +276,7 @@ eas submit --platform all # Store submission
 
 ---
 
-## 11. Phase 2 — Supabase Schema
-
-When accounts are added, progress migrates from AsyncStorage to Supabase. Local progress is uploaded on first login.
+## 11. Supabase Schema (Phase 1)
 
 ### `profiles`
 | Column | Type | Notes |
@@ -326,11 +323,11 @@ RLS: users can only read and write their own rows.
 
 ## 13. Infrastructure Cost
 
-| Service | Phase 1 Cost | Phase 2 Cost |
-|---|---|---|
-| Expo / EAS | Free tier | Free tier |
-| Supabase | N/A | Free tier |
-| PostHog | Free tier (1M events/mo) | Free tier |
-| Apple Developer | $99/year | $99/year |
-| Google Play | $25 one-time | — |
-| **Total** | **~$124** | **~$124** |
+| Service | Cost |
+|---|---|
+| Expo / EAS | Free tier |
+| Supabase (auth + DB) | Free tier |
+| PostHog | Free tier (1M events/mo) |
+| Apple Developer Account | $99/year |
+| Google Play Developer | $25 one-time |
+| **Total to ship MVP** | **~$124** |
