@@ -16,6 +16,7 @@ create table if not exists public.profiles (
 
 alter table public.profiles enable row level security;
 
+drop policy if exists "Users can manage own profile" on public.profiles;
 create policy "Users can manage own profile"
   on public.profiles for all
   using (auth.uid() = id);
@@ -39,6 +40,7 @@ create table if not exists public.word_progress (
 
 alter table public.word_progress enable row level security;
 
+drop policy if exists "Users can manage own word progress" on public.word_progress;
 create policy "Users can manage own word progress"
   on public.word_progress for all
   using (auth.uid() = user_id);
@@ -56,6 +58,7 @@ create table if not exists public.phrase_progress (
 
 alter table public.phrase_progress enable row level security;
 
+drop policy if exists "Users can manage own phrase progress" on public.phrase_progress;
 create policy "Users can manage own phrase progress"
   on public.phrase_progress for all
   using (auth.uid() = user_id);
