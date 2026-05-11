@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo, useRef } from 'react';
 import { Word } from '../types';
 
 export type AnswerState = 'unanswered' | 'correct' | 'wrong';
@@ -30,8 +30,16 @@ function buildQuestion(word: Word, allWords: Word[]): QuizQuestion {
 }
 
 export function useGameState(words: Word[], sessionSize = 10) {
-  const pool = shuffle(words).slice(0, sessionSize);
-  const questions = pool.map(w => buildQuestion(w, words));
+  // sessionKey increments on reset to force useMemo to rebuild with a new shuffle
+  const [sessionKey, setSessionKey] = useState(0);
+  const wordsRef = useRef(words);
+
+  // Questions are stable for the entire session — only rebuilt when reset() is called
+  const questions = useMemo(() => {
+    const pool = shuffle(wordsRef.current).slice(0, sessionSize);
+    return pool.map(w => buildQuestion(w, wordsRef.current));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionKey, sessionSize]);
 
   const [questionIndex, setQuestionIndex] = useState(0);
   const [hearts, setHearts] = useState(3);
@@ -83,6 +91,7 @@ export function useGameState(words: Word[], sessionSize = 10) {
   }, [hintsUsed, current]);
 
   const reset = useCallback(() => {
+    setSessionKey(k => k + 1); // triggers useMemo → new shuffle
     setQuestionIndex(0);
     setHearts(3);
     setXp(0);

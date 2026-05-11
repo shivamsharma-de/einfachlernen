@@ -71,6 +71,11 @@ export default function QuizScreen() {
   return <QuizGame words={words} onExit={() => router.replace('/(tabs)')} />;
 }
 
+const LEVEL_COLORS: Record<string, string> = {
+  A1: Colors.levelA1, A2: Colors.levelA2, B1: Colors.levelB1,
+  B2: Colors.levelB2, C1: Colors.levelC1, C2: Colors.levelC2,
+};
+
 // ─── Game ─────────────────────────────────────────────────────────────────────
 function QuizGame({ words, onExit }: { words: Word[]; onExit: () => void }) {
   const router = useRouter();
@@ -90,7 +95,7 @@ function QuizGame({ words, onExit }: { words: Word[]; onExit: () => void }) {
       duration: 400,
       useNativeDriver: false,
     }).start();
-  }, [questionIndex]);
+  }, [questionIndex, total]);
 
   useEffect(() => {
     feedbackAnim.setValue(0);
@@ -127,11 +132,7 @@ function QuizGame({ words, onExit }: { words: Word[]; onExit: () => void }) {
   }
 
   const word = current.word;
-  const levelColors: Record<string, string> = {
-    A1: Colors.levelA1, A2: Colors.levelA2, B1: Colors.levelB1,
-    B2: Colors.levelB2, C1: Colors.levelC1, C2: Colors.levelC2,
-  };
-  const levelColor = levelColors[word.level] ?? Colors.gold;
+  const levelColor = LEVEL_COLORS[word.level] ?? Colors.gold;
 
   return (
     <SafeAreaView style={styles.safe}>

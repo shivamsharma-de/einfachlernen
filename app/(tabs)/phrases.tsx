@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
   StyleSheet, SafeAreaView, ActivityIndicator,
@@ -38,8 +38,14 @@ export default function PhrasesScreen() {
       .finally(() => setLoading(false));
   }, []);
 
-  const categories = ['All', ...Array.from(new Set(phrases.map(p => p.category))).sort()];
-  const filtered = activeCategory === 'All' ? phrases : phrases.filter(p => p.category === activeCategory);
+  const categories = useMemo(
+    () => ['All', ...Array.from(new Set(phrases.map(p => p.category))).sort()],
+    [phrases],
+  );
+  const filtered = useMemo(
+    () => activeCategory === 'All' ? phrases : phrases.filter(p => p.category === activeCategory),
+    [phrases, activeCategory],
+  );
 
   const toggleExpand = (id: string) => {
     setExpandedIds(prev => {

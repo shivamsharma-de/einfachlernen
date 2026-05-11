@@ -22,7 +22,28 @@ async function writeCache<T>(key: string, data: T): Promise<void> {
   try {
     const envelope: CacheEnvelope<T> = { ts: Date.now(), data };
     await AsyncStorage.setItem(key, JSON.stringify(envelope));
-  } catch {}
+  } catch (err) {
+    console.warn('Cache write failed:', err);
+  }
+}
+
+async function fetchWithCache<T>(
+  cacheKey: string,
+  table: string,
+  label: string,
+): Promise<T[]> {
+  const cached = await readCache<T[]>(cacheKey);
+  if (cached) return cached;
+
+  const { data, error } = await supabase.from(table).select('*');
+
+  if (error || !data) {
+    console.warn(`fetch ${label} error:`, error?.message);
+    return [];
+  }
+
+  await writeCache(cacheKey, data);
+  return data as T[];
 }
 
 // ─── Words ───────────────────────────────────────────────────────────────────
@@ -30,22 +51,7 @@ async function writeCache<T>(key: string, data: T): Promise<void> {
 const WORDS_CACHE_KEY = 'de_words_v1';
 
 export async function fetchAllWords(): Promise<Word[]> {
-  const cached = await readCache<Word[]>(WORDS_CACHE_KEY);
-  if (cached) return cached;
-
-  const { data, error } = await supabase
-    .from('de_words')
-    .select('*')
-    .order('level')
-    .order('category');
-
-  if (error || !data) {
-    console.warn('fetchAllWords error:', error?.message);
-    return [];
-  }
-
-  await writeCache(WORDS_CACHE_KEY, data);
-  return data as Word[];
+  return fetchWithCache<Word>(WORDS_CACHE_KEY, 'de_words', 'words');
 }
 
 export async function fetchWordsByLevel(levels: CEFRLevel[]): Promise<Word[]> {
@@ -62,22 +68,7 @@ export async function clearWordsCache(): Promise<void> {
 const PHRASES_CACHE_KEY = 'de_redemittel_v1';
 
 export async function fetchAllPhrases(): Promise<Phrase[]> {
-  const cached = await readCache<Phrase[]>(PHRASES_CACHE_KEY);
-  if (cached) return cached;
-
-  const { data, error } = await supabase
-    .from('de_redemittel')
-    .select('*')
-    .order('level')
-    .order('category');
-
-  if (error || !data) {
-    console.warn('fetchAllPhrases error:', error?.message);
-    return [];
-  }
-
-  await writeCache(PHRASES_CACHE_KEY, data);
-  return data as Phrase[];
+  return fetchWithCache<Phrase>(PHRASES_CACHE_KEY, 'de_redemittel', 'phrases');
 }
 
 export async function clearPhrasesCache(): Promise<void> {
@@ -88,9 +79,8 @@ export async function clearPhrasesCache(): Promise<void> {
 
 export async function fetchWordCountsByLevel(): Promise<Record<CEFRLevel, number>> {
   const all = await fetchAllWords();
-  const counts = {} as Record<CEFRLevel, number>;
-  for (const w of all) {
-    counts[w.level] = (counts[w.level] ?? 0) + 1;
-  }
-  return counts;
+  return all.reduce((acc, w) => {
+    acc[w.level] = (acc[w.level] ?? 0) + 1;
+    return acc;
+  }, {} as Record<CEFRLevel, number>);
 }
