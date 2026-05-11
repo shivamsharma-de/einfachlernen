@@ -86,8 +86,10 @@ function QuizGame({ words, onExit }: { words: Word[]; onExit: () => void }) {
     sessionDone, correctCount, answer, next, useHint, reset,
   } = game;
 
-  const progressAnim = useRef(new Animated.Value(0)).current;
-  const feedbackAnim = useRef(new Animated.Value(0)).current;
+  const progressAnim    = useRef(new Animated.Value(0)).current;
+  const feedbackAnim    = useRef(new Animated.Value(0)).current;
+  const autoAdvanceAnim = useRef(new Animated.Value(0)).current;
+  const [countdown, setCountdown] = useState(3);
 
   useEffect(() => {
     Animated.timing(progressAnim, {
@@ -104,6 +106,32 @@ function QuizGame({ words, onExit }: { words: Word[]; onExit: () => void }) {
         toValue: 1, useNativeDriver: true, tension: 80, friction: 8,
       }).start();
     }
+  }, [answerState]);
+
+  // Auto-advance: fill button over 2 s, showing 3 → 2 → 1 countdown
+  useEffect(() => {
+    if (answerState === 'unanswered') {
+      autoAdvanceAnim.stopAnimation();
+      autoAdvanceAnim.setValue(0);
+      setCountdown(3);
+      return;
+    }
+
+    setCountdown(3);
+    Animated.timing(autoAdvanceAnim, {
+      toValue: 1,
+      duration: 2000,
+      useNativeDriver: false,
+    }).start(({ finished }) => { if (finished) next(); });
+
+    const t1 = setTimeout(() => setCountdown(2), 667);
+    const t2 = setTimeout(() => setCountdown(1), 1334);
+
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      autoAdvanceAnim.stopAnimation();
+    };
   }, [answerState]);
 
   const handleAnswer = (index: number) => {
@@ -280,11 +308,25 @@ function QuizGame({ words, onExit }: { words: Word[]; onExit: () => void }) {
           </Animated.View>
         )}
 
-        {/* Next */}
+        {/* Auto-advance button */}
         {answerState !== 'unanswered' && (
-          <TouchableOpacity style={styles.nextBtn} onPress={next}>
+          <TouchableOpacity
+            style={styles.nextBtn}
+            onPress={() => { autoAdvanceAnim.stopAnimation(); next(); }}
+            activeOpacity={0.9}
+          >
+            {/* Fill sweeps left → right over 2 s */}
+            <Animated.View
+              style={[styles.nextBtnFill, {
+                width: autoAdvanceAnim.interpolate({
+                  inputRange: [0, 1], outputRange: ['0%', '100%'],
+                }),
+              }]}
+            />
             <Text style={styles.nextBtnText}>
-              {questionIndex + 1 >= total ? 'See Results 🎉' : 'Continue →'}
+              {questionIndex + 1 >= total
+                ? `Results 🎉  ${countdown}`
+                : `Next  ${countdown}`}
             </Text>
           </TouchableOpacity>
         )}
@@ -398,8 +440,16 @@ const styles = StyleSheet.create({
   feedbackText: { color: Colors.textMuted, fontSize: 13, fontStyle: 'italic' },
   feedbackSub: { color: Colors.textDim, fontSize: 12 },
 
-  nextBtn: { backgroundColor: Colors.gold, borderRadius: 14, paddingVertical: 15, alignItems: 'center', marginBottom: 12 },
-  nextBtnText: { color: Colors.black, fontWeight: '800', fontSize: 16 },
+  nextBtn: {
+    borderRadius: 14, paddingVertical: 15, alignItems: 'center', marginBottom: 12,
+    overflow: 'hidden', backgroundColor: Colors.goldDark,
+    borderWidth: 1, borderColor: Colors.gold,
+  },
+  nextBtnFill: {
+    position: 'absolute', left: 0, top: 0, bottom: 0,
+    backgroundColor: Colors.gold,
+  },
+  nextBtnText: { color: Colors.black, fontWeight: '800', fontSize: 16, zIndex: 1 },
 
   resultContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 12 },
   resultEmoji: { fontSize: 64, marginBottom: 8 },
