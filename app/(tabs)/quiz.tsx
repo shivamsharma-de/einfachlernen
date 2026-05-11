@@ -1,13 +1,14 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
-  View, Text, TouchableOpacity, ScrollView,
+  View, Text, TouchableOpacity, ScrollView, ActivityIndicator,
   StyleSheet, SafeAreaView, Animated, Dimensions,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../constants/Colors';
-import { CEFRLevel } from '../../data/vocabulary';
+import { CEFRLevel, Word } from '../../types';
+import { fetchWordsByLevel } from '../../lib/db';
 import { useGameState } from '../../hooks/useGameState';
 
 const { width } = Dimensions.get('window');
@@ -25,17 +26,62 @@ const HINT_CONFIG = [
   { key: 'image',     icon: '🖼️', label: 'Picture',   cost: 5  },
 ];
 
+// ─── Loader wrapper ───────────────────────────────────────────────────────────
 export default function QuizScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ levels?: string }>();
-  const levels = (params.levels ?? 'A1,A2').split(',') as CEFRLevel[];
+  const levels = (params.levels ?? 'A1').split(',') as CEFRLevel[];
 
-  const game = useGameState(levels, 10);
-  const { current, questionIndex, total, hearts, xp, answerState, selectedIndex,
-          hintsUsed, eliminatedIndices, sessionDone, correctCount, answer, next, useHint, reset } = game;
+  const [words, setWords] = useState<Word[] | null>(null);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    fetchWordsByLevel(levels)
+      .then(data => {
+        if (data.length === 0) setError(true);
+        else setWords(data);
+      })
+      .catch(() => setError(true));
+  }, []);
+
+  if (error) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <View style={styles.centerBox}>
+          <Text style={styles.errorText}>Could not load words.</Text>
+          <TouchableOpacity style={styles.retryBtn} onPress={() => router.back()}>
+            <Text style={styles.retryBtnText}>Go back</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (!words) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <View style={styles.centerBox}>
+          <ActivityIndicator color={Colors.gold} size="large" />
+          <Text style={styles.loadingText}>Loading words…</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  return <QuizGame words={words} onExit={() => router.replace('/(tabs)')} />;
+}
+
+// ─── Game ─────────────────────────────────────────────────────────────────────
+function QuizGame({ words, onExit }: { words: Word[]; onExit: () => void }) {
+  const router = useRouter();
+  const game = useGameState(words, 10);
+  const {
+    current, questionIndex, total, hearts, xp,
+    answerState, selectedIndex, hintsUsed, eliminatedIndices,
+    sessionDone, correctCount, answer, next, useHint, reset,
+  } = game;
 
   const progressAnim = useRef(new Animated.Value(0)).current;
-  const cardAnim = useRef(new Animated.Value(1)).current;
   const feedbackAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -49,17 +95,19 @@ export default function QuizScreen() {
   useEffect(() => {
     feedbackAnim.setValue(0);
     if (answerState !== 'unanswered') {
-      Animated.spring(feedbackAnim, { toValue: 1, useNativeDriver: true, tension: 80, friction: 8 }).start();
+      Animated.spring(feedbackAnim, {
+        toValue: 1, useNativeDriver: true, tension: 80, friction: 8,
+      }).start();
     }
   }, [answerState]);
 
   const handleAnswer = (index: number) => {
     if (answerState !== 'unanswered') return;
-    if (index === current.correctIndex) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } else {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-    }
+    Haptics.notificationAsync(
+      index === current.correctIndex
+        ? Haptics.NotificationFeedbackType.Success
+        : Haptics.NotificationFeedbackType.Error,
+    );
     answer(index);
   };
 
@@ -70,11 +118,20 @@ export default function QuizScreen() {
   };
 
   if (sessionDone) {
-    return <ResultScreen correct={correctCount} total={total} xp={xp} onReplay={reset} onHome={() => router.replace('/(tabs)')} />;
+    return (
+      <ResultScreen
+        correct={correctCount} total={total} xp={xp}
+        onReplay={reset} onHome={onExit}
+      />
+    );
   }
 
   const word = current.word;
-  const levelColor = word.level === 'A1' ? Colors.levelA1 : Colors.levelA2;
+  const levelColors: Record<string, string> = {
+    A1: Colors.levelA1, A2: Colors.levelA2, B1: Colors.levelB1,
+    B2: Colors.levelB2, C1: Colors.levelC1, C2: Colors.levelC2,
+  };
+  const levelColor = levelColors[word.level] ?? Colors.gold;
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -105,7 +162,9 @@ export default function QuizScreen() {
         {/* Level + Category Tag */}
         <View style={styles.tagRow}>
           <View style={[styles.levelTag, { borderColor: levelColor + '55', backgroundColor: levelColor + '15' }]}>
-            <Text style={[styles.levelTagText, { color: levelColor }]}>⭐ {word.level} · {word.category}</Text>
+            <Text style={[styles.levelTagText, { color: levelColor }]}>
+              ⭐ {word.level} · {word.category}
+            </Text>
           </View>
           <View style={styles.xpBadge}>
             <Text style={styles.xpBadgeText}>+{xp} XP</Text>
@@ -114,37 +173,37 @@ export default function QuizScreen() {
 
         {/* Word Card */}
         <View style={styles.wordCard}>
-          <Text style={styles.wordType}>{word.type.toUpperCase()}</Text>
+          <Text style={styles.wordType}>{word.word_type.toUpperCase()}</Text>
 
           {word.article ? (
-            <View style={styles.articleRow}>
-              <Text style={[styles.article, { color: ARTICLE_COLOR[word.article] }]}>
-                {word.article}
-              </Text>
-            </View>
+            <Text style={[styles.article, { color: ARTICLE_COLOR[word.article] ?? Colors.textMuted }]}>
+              {word.article}
+            </Text>
           ) : null}
 
           <Text style={styles.mainWord}>{word.german}</Text>
-          <Text style={styles.pronunciation}>{word.pronunciation}</Text>
+          {word.pronunciation ? (
+            <Text style={styles.pronunciation}>{word.pronunciation}</Text>
+          ) : null}
 
-          {/* Example sentence if hint used */}
-          {hintsUsed.has('context') && (
+          {hintsUsed.has('context') && word.example_de && (
             <View style={styles.contextBox}>
               <Text style={styles.contextLabel}>💬 Context</Text>
-              <Text style={styles.contextText}>„{word.exampleDe}"</Text>
-              <Text style={styles.contextTranslation}>{word.exampleEn}</Text>
+              <Text style={styles.contextText}>„{word.example_de}"</Text>
+              <Text style={styles.contextTranslation}>{word.example_en}</Text>
             </View>
           )}
           {hintsUsed.has('letter') && (
             <View style={styles.letterBox}>
               <Text style={styles.letterHint}>
-                🔡 First letter: <Text style={{ color: Colors.gold, fontWeight: '800' }}>
+                🔡 First letter:{' '}
+                <Text style={{ color: Colors.gold, fontWeight: '800' }}>
                   {word.english.charAt(0).toUpperCase()}…
                 </Text>
               </Text>
             </View>
           )}
-          {hintsUsed.has('image') && (
+          {hintsUsed.has('image') && word.hint && (
             <View style={styles.imageHintBox}>
               <Text style={styles.imageHintText}>🖼️ {word.hint}</Text>
             </View>
@@ -204,18 +263,23 @@ export default function QuizScreen() {
             style={[
               styles.feedbackBar,
               answerState === 'correct' ? styles.feedbackCorrect : styles.feedbackWrong,
-              { opacity: feedbackAnim, transform: [{ scale: feedbackAnim.interpolate({ inputRange: [0, 1], outputRange: [0.95, 1] }) }] },
+              {
+                opacity: feedbackAnim,
+                transform: [{
+                  scale: feedbackAnim.interpolate({ inputRange: [0, 1], outputRange: [0.95, 1] }),
+                }],
+              },
             ]}
           >
             <Text style={styles.feedbackTitle}>
               {answerState === 'correct' ? '✅ Correct!' : '❌ Not quite'}
             </Text>
-            <Text style={styles.feedbackText}>{word.exampleDe}</Text>
-            <Text style={styles.feedbackSub}>{word.exampleEn}</Text>
+            {word.example_de && <Text style={styles.feedbackText}>{word.example_de}</Text>}
+            {word.example_en && <Text style={styles.feedbackSub}>{word.example_en}</Text>}
           </Animated.View>
         )}
 
-        {/* Next Button */}
+        {/* Next */}
         {answerState !== 'unanswered' && (
           <TouchableOpacity style={styles.nextBtn} onPress={next}>
             <Text style={styles.nextBtnText}>
@@ -230,6 +294,7 @@ export default function QuizScreen() {
   );
 }
 
+// ─── Result screen ────────────────────────────────────────────────────────────
 function ResultScreen({ correct, total, xp, onReplay, onHome }: {
   correct: number; total: number; xp: number;
   onReplay: () => void; onHome: () => void;
@@ -244,13 +309,11 @@ function ResultScreen({ correct, total, xp, onReplay, onHome }: {
         <Text style={styles.resultEmoji}>{emoji}</Text>
         <Text style={styles.resultTitle}>{msg}</Text>
         <Text style={styles.resultSub}>Session complete</Text>
-
         <View style={styles.resultStats}>
           <StatBox label="Correct" value={`${correct}/${total}`} color={Colors.green} />
-          <StatBox label="Score" value={`${pct}%`} color={Colors.gold} />
-          <StatBox label="XP Earned" value={`+${xp}`} color={Colors.purple} />
+          <StatBox label="Score"   value={`${pct}%`}            color={Colors.gold} />
+          <StatBox label="XP"      value={`+${xp}`}             color={Colors.purple} />
         </View>
-
         <TouchableOpacity style={styles.replayBtn} onPress={onReplay}>
           <Text style={styles.replayBtnText}>Play Again ↺</Text>
         </TouchableOpacity>
@@ -274,13 +337,14 @@ function StatBox({ label, value, color }: { label: string; value: string; color:
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.bg },
   scroll: { paddingHorizontal: 20, paddingTop: 8 },
+  centerBox: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 16 },
+  loadingText: { color: Colors.textMuted, fontSize: 14, marginTop: 12 },
+  errorText: { color: Colors.red, fontSize: 15 },
+  retryBtn: { backgroundColor: Colors.surface, borderRadius: 12, paddingHorizontal: 24, paddingVertical: 12, borderWidth: 1, borderColor: Colors.border },
+  retryBtnText: { color: Colors.white, fontWeight: '600' },
 
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16 },
-  backBtn: {
-    width: 38, height: 38, borderRadius: 12,
-    backgroundColor: Colors.surface, alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1, borderColor: Colors.border,
-  },
+  backBtn: { width: 38, height: 38, borderRadius: 12, backgroundColor: Colors.surface, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: Colors.border },
   progressWrap: { flex: 1 },
   progressBg: { height: 8, backgroundColor: Colors.surface3, borderRadius: 4, overflow: 'hidden' },
   progressFill: { height: '100%', backgroundColor: Colors.gold, borderRadius: 4 },
@@ -294,39 +358,23 @@ const styles = StyleSheet.create({
   xpBadge: { backgroundColor: Colors.goldBg, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
   xpBadgeText: { color: Colors.gold, fontSize: 12, fontWeight: '700' },
 
-  wordCard: {
-    backgroundColor: Colors.surface, borderRadius: 20, padding: 24,
-    alignItems: 'center', borderWidth: 1, borderColor: Colors.border,
-    marginBottom: 14,
-  },
+  wordCard: { backgroundColor: Colors.surface, borderRadius: 20, padding: 24, alignItems: 'center', borderWidth: 1, borderColor: Colors.border, marginBottom: 14 },
   wordType: { color: Colors.textMuted, fontSize: 11, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 8 },
-  articleRow: { marginBottom: 4 },
-  article: { fontSize: 16, fontWeight: '600' },
+  article: { fontSize: 16, fontWeight: '600', marginBottom: 4 },
   mainWord: { color: Colors.white, fontSize: 40, fontWeight: '900', letterSpacing: -1, textAlign: 'center' },
   pronunciation: { color: Colors.textMuted, fontSize: 14, fontStyle: 'italic', marginTop: 6 },
 
-  contextBox: {
-    marginTop: 14, backgroundColor: Colors.surface2, borderRadius: 12, padding: 12, width: '100%',
-    borderLeftWidth: 3, borderLeftColor: Colors.purple,
-  },
+  contextBox: { marginTop: 14, backgroundColor: Colors.surface2, borderRadius: 12, padding: 12, width: '100%', borderLeftWidth: 3, borderLeftColor: Colors.purple },
   contextLabel: { color: Colors.purple, fontSize: 10, fontWeight: '700', textTransform: 'uppercase', marginBottom: 4 },
   contextText: { color: Colors.white, fontSize: 14, fontStyle: 'italic' },
   contextTranslation: { color: Colors.textMuted, fontSize: 12, marginTop: 4 },
-
   letterBox: { marginTop: 12, backgroundColor: Colors.surface2, borderRadius: 10, padding: 10, width: '100%' },
   letterHint: { color: Colors.textMuted, fontSize: 14 },
-
-  imageHintBox: {
-    marginTop: 12, backgroundColor: '#1e1a0d', borderRadius: 10, padding: 12, width: '100%',
-    borderWidth: 1, borderColor: Colors.gold + '33',
-  },
+  imageHintBox: { marginTop: 12, backgroundColor: '#1e1a0d', borderRadius: 10, padding: 12, width: '100%', borderWidth: 1, borderColor: Colors.gold + '33' },
   imageHintText: { color: '#e8d89a', fontSize: 13 },
 
   hintsRow: { flexDirection: 'row', gap: 8, marginBottom: 18 },
-  hintBtn: {
-    flex: 1, backgroundColor: Colors.surface, borderRadius: 12, padding: 10,
-    alignItems: 'center', gap: 3, borderWidth: 1, borderColor: Colors.border,
-  },
+  hintBtn: { flex: 1, backgroundColor: Colors.surface, borderRadius: 12, padding: 10, alignItems: 'center', gap: 3, borderWidth: 1, borderColor: Colors.border },
   hintBtnUsed: { opacity: 0.4 },
   hintIcon: { fontSize: 18 },
   hintLabel: { color: Colors.textMuted, fontSize: 10, textAlign: 'center' },
@@ -335,17 +383,12 @@ const styles = StyleSheet.create({
   questionText: { color: Colors.textMuted, fontSize: 14, textAlign: 'center', marginBottom: 14 },
 
   optionsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 16 },
-  optionBtn: {
-    width: (width - 50) / 2,
-    backgroundColor: Colors.surface, borderRadius: 14,
-    padding: 16, borderWidth: 1.5, borderColor: Colors.border,
-    gap: 4,
-  },
+  optionBtn: { width: (width - 50) / 2, backgroundColor: Colors.surface, borderRadius: 14, padding: 16, borderWidth: 1.5, borderColor: Colors.border, gap: 4 },
   optionCorrect: { borderColor: Colors.green, backgroundColor: Colors.greenBg },
   optionWrong: { borderColor: Colors.red, backgroundColor: Colors.redBg },
   optionEliminated: { opacity: 0.2 },
   optionLetter: { color: Colors.textMuted, fontSize: 10, fontWeight: '600' },
-  optionText: { color: Colors.white, fontSize: 15, fontWeight: '600', lineHeight: 20 },
+  optionText: { fontSize: 15, fontWeight: '600', lineHeight: 20 },
 
   feedbackBar: { borderRadius: 14, padding: 16, marginBottom: 14, gap: 4 },
   feedbackCorrect: { backgroundColor: Colors.greenBg, borderWidth: 1, borderColor: Colors.green + '44' },
@@ -354,10 +397,7 @@ const styles = StyleSheet.create({
   feedbackText: { color: Colors.textMuted, fontSize: 13, fontStyle: 'italic' },
   feedbackSub: { color: Colors.textDim, fontSize: 12 },
 
-  nextBtn: {
-    backgroundColor: Colors.gold, borderRadius: 14,
-    paddingVertical: 15, alignItems: 'center', marginBottom: 12,
-  },
+  nextBtn: { backgroundColor: Colors.gold, borderRadius: 14, paddingVertical: 15, alignItems: 'center', marginBottom: 12 },
   nextBtnText: { color: Colors.black, fontWeight: '800', fontSize: 16 },
 
   resultContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 12 },

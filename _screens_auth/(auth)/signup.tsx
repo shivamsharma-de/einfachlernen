@@ -23,7 +23,7 @@ export default function SignupScreen() {
       return;
     }
     if (password !== confirm) {
-      Alert.alert('Passwords don't match', 'Please make sure both passwords are the same.');
+      Alert.alert("Passwords don't match", 'Please make sure both passwords are the same.');
       return;
     }
     if (password.length < 8) {

@@ -6,7 +6,7 @@ import {
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../constants/Colors';
-import { CEFRLevel } from '../../data/vocabulary';
+import { CEFRLevel } from '../../types';
 
 const { width } = Dimensions.get('window');
 
