@@ -83,7 +83,8 @@ function QuizGame({ words, onExit }: { words: Word[]; onExit: () => void }) {
   const {
     current, questionIndex, total, hearts, xp,
     answerState, selectedIndex, hintsUsed, eliminatedIndices,
-    sessionDone, correctCount, answer, next, useHint, reset,
+    sessionDone, correctCount, canGoBack, isReviewing,
+    answer, next, back, useHint, reset,
   } = game;
 
   const progressAnim    = useRef(new Animated.Value(0)).current;
@@ -108,9 +109,10 @@ function QuizGame({ words, onExit }: { words: Word[]; onExit: () => void }) {
     }
   }, [answerState]);
 
-  // Auto-advance: fill button over 2 s, showing 3 → 2 → 1 countdown
+  // Auto-advance: fill button over 2 s, showing 3 → 2 → 1 countdown.
+  // Skipped when reviewing a history question — user navigates manually.
   useEffect(() => {
-    if (answerState === 'unanswered') {
+    if (answerState === 'unanswered' || isReviewing) {
       autoAdvanceAnim.stopAnimation();
       autoAdvanceAnim.setValue(0);
       setCountdown(3);
@@ -132,7 +134,7 @@ function QuizGame({ words, onExit }: { words: Word[]; onExit: () => void }) {
       clearTimeout(t2);
       autoAdvanceAnim.stopAnimation();
     };
-  }, [answerState]);
+  }, [answerState, isReviewing]);
 
   const handleAnswer = (index: number) => {
     if (answerState !== 'unanswered') return;
@@ -168,8 +170,11 @@ function QuizGame({ words, onExit }: { words: Word[]; onExit: () => void }) {
 
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-            <Ionicons name="arrow-back" size={18} color={Colors.white} />
+          <TouchableOpacity
+            style={styles.backBtn}
+            onPress={() => canGoBack ? back() : router.back()}
+          >
+            <Ionicons name="arrow-back" size={18} color={canGoBack ? Colors.gold : Colors.white} />
           </TouchableOpacity>
           <View style={styles.progressWrap}>
             <View style={styles.progressBg}>
@@ -308,27 +313,38 @@ function QuizGame({ words, onExit }: { words: Word[]; onExit: () => void }) {
           </Animated.View>
         )}
 
-        {/* Auto-advance button */}
+        {/* Next / auto-advance button */}
         {answerState !== 'unanswered' && (
-          <TouchableOpacity
-            style={styles.nextBtn}
-            onPress={() => { autoAdvanceAnim.stopAnimation(); next(); }}
-            activeOpacity={0.9}
-          >
-            {/* Fill sweeps left → right over 2 s */}
-            <Animated.View
-              style={[styles.nextBtnFill, {
-                width: autoAdvanceAnim.interpolate({
-                  inputRange: [0, 1], outputRange: ['0%', '100%'],
-                }),
-              }]}
-            />
-            <Text style={styles.nextBtnText}>
-              {questionIndex + 1 >= total
-                ? `Results 🎉  ${countdown}`
-                : `Next  ${countdown}`}
-            </Text>
-          </TouchableOpacity>
+          isReviewing ? (
+            <TouchableOpacity
+              style={[styles.nextBtn, styles.nextBtnReview]}
+              onPress={next}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.nextBtnText}>
+                {questionIndex + 1 >= total ? 'Results 🎉' : 'Continue →'}
+              </Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={styles.nextBtn}
+              onPress={() => { autoAdvanceAnim.stopAnimation(); next(); }}
+              activeOpacity={0.9}
+            >
+              <Animated.View
+                style={[styles.nextBtnFill, {
+                  width: autoAdvanceAnim.interpolate({
+                    inputRange: [0, 1], outputRange: ['0%', '100%'],
+                  }),
+                }]}
+              />
+              <Text style={styles.nextBtnText}>
+                {questionIndex + 1 >= total
+                  ? `Results 🎉  ${countdown}`
+                  : `Next  ${countdown}`}
+              </Text>
+            </TouchableOpacity>
+          )
         )}
 
         <View style={{ height: 20 }} />
@@ -449,6 +465,7 @@ const styles = StyleSheet.create({
     position: 'absolute', left: 0, top: 0, bottom: 0,
     backgroundColor: Colors.gold,
   },
+  nextBtnReview: { backgroundColor: Colors.gold, borderColor: Colors.gold },
   nextBtnText: { color: Colors.black, fontWeight: '800', fontSize: 16, zIndex: 1 },
 
   resultContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 12 },

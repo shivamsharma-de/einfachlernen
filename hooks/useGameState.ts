@@ -9,6 +9,17 @@ export interface QuizQuestion {
   correctIndex: number;
 }
 
+interface HistoryEntry {
+  questionIndex: number;
+  selectedIndex: number | null;
+  answerState: AnswerState;
+  hintsUsed: Set<string>;
+  eliminatedIndices: number[];
+  hearts: number;
+  xp: number;
+  correctCount: number;
+}
+
 function shuffle<T>(arr: T[]): T[] {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {
@@ -30,11 +41,9 @@ function buildQuestion(word: Word, allWords: Word[]): QuizQuestion {
 }
 
 export function useGameState(words: Word[], sessionSize = 10) {
-  // sessionKey increments on reset to force useMemo to rebuild with a new shuffle
   const [sessionKey, setSessionKey] = useState(0);
   const wordsRef = useRef(words);
 
-  // Questions are stable for the entire session — only rebuilt when reset() is called
   const questions = useMemo(() => {
     const pool = shuffle(wordsRef.current).slice(0, sessionSize);
     return pool.map(w => buildQuestion(w, wordsRef.current));
@@ -51,10 +60,16 @@ export function useGameState(words: Word[], sessionSize = 10) {
   const [sessionDone, setSessionDone] = useState(false);
   const [correctCount, setCorrectCount] = useState(0);
 
+  // Stack of answered-question snapshots; popped when going back
+  const [history, setHistory] = useState<HistoryEntry[]>([]);
+  // True when we've navigated back into a previously-answered question
+  const [isReviewing, setIsReviewing] = useState(false);
+
   const current = questions[questionIndex];
 
   const answer = useCallback((index: number) => {
     if (answerState !== 'unanswered') return;
+    setIsReviewing(false);
     setSelectedIndex(index);
     if (index === current.correctIndex) {
       const earned = Math.max(10, 20 - hintsUsed.size * 5);
@@ -68,16 +83,45 @@ export function useGameState(words: Word[], sessionSize = 10) {
   }, [answerState, current, hintsUsed]);
 
   const next = useCallback(() => {
+    // Snapshot current answered state before advancing
+    setHistory(prev => [...prev, {
+      questionIndex,
+      selectedIndex,
+      answerState,
+      hintsUsed: new Set(hintsUsed),
+      eliminatedIndices: [...eliminatedIndices],
+      hearts,
+      xp,
+      correctCount,
+    }]);
+
     if (questionIndex + 1 >= questions.length || hearts === 0) {
       setSessionDone(true);
       return;
     }
+    setIsReviewing(false);
     setQuestionIndex(i => i + 1);
     setAnswerState('unanswered');
     setSelectedIndex(null);
     setHintsUsed(new Set());
     setEliminatedIndices([]);
-  }, [questionIndex, questions.length, hearts]);
+  }, [questionIndex, questions.length, hearts, xp, correctCount,
+      selectedIndex, answerState, hintsUsed, eliminatedIndices]);
+
+  const back = useCallback(() => {
+    if (history.length === 0) return;
+    const prev = history[history.length - 1];
+    setHistory(h => h.slice(0, -1));
+    setIsReviewing(true);
+    setQuestionIndex(prev.questionIndex);
+    setSelectedIndex(prev.selectedIndex);
+    setAnswerState(prev.answerState);
+    setHintsUsed(prev.hintsUsed);
+    setEliminatedIndices(prev.eliminatedIndices);
+    setHearts(prev.hearts);
+    setXp(prev.xp);
+    setCorrectCount(prev.correctCount);
+  }, [history]);
 
   const useHint = useCallback((type: string) => {
     if (hintsUsed.has(type)) return;
@@ -91,7 +135,7 @@ export function useGameState(words: Word[], sessionSize = 10) {
   }, [hintsUsed, current]);
 
   const reset = useCallback(() => {
-    setSessionKey(k => k + 1); // triggers useMemo → new shuffle
+    setSessionKey(k => k + 1);
     setQuestionIndex(0);
     setHearts(3);
     setXp(0);
@@ -101,12 +145,16 @@ export function useGameState(words: Word[], sessionSize = 10) {
     setEliminatedIndices([]);
     setSessionDone(false);
     setCorrectCount(0);
+    setHistory([]);
+    setIsReviewing(false);
   }, []);
 
   return {
     current, questionIndex, total: questions.length,
     hearts, xp, answerState, selectedIndex,
     hintsUsed, eliminatedIndices, sessionDone, correctCount,
-    answer, next, useHint, reset,
+    canGoBack: history.length > 0,
+    isReviewing,
+    answer, next, back, useHint, reset,
   };
 }
