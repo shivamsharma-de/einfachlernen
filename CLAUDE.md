@@ -23,7 +23,7 @@ Write **only** inside your own paths. Reading anything is fine.
 | `supabase/functions/**`, `lib/**` (except `lib/supabase.ts`), `lib/__tests__/**` | backend |
 | `components/**`, `constants/Colors.ts`, `docs/design/**`, `assets/**` | design |
 | `app/**`, `hooks/**`, `context/**`, `_screens_auth/**` | frontend |
-| `types/contracts.ts`, `types/index.ts`, `docs/agents/CONTRACTS.md`, `package.json`, `app.json`, `lib/supabase.ts`, `vitest.config.ts`, `supabase/config.toml`, `scripts/agents/**`, `CLAUDE.md` | **lead only** |
+| `types/contracts.ts`, `types/index.ts`, `docs/agents/CONTRACTS.md`, `package.json`, `app.json`, `lib/supabase.ts`, `vitest.config.ts`, `supabase/config.toml`, `scripts/agents/**`, `scripts/pipeline/**`, `CLAUDE.md` | **lead only** |
 | `docs/agents/status/<agent>.md` | that agent |
 
 `npm run agents:check <your-agent>` fails if your branch touched anything else. Run it before you commit.

@@ -67,7 +67,9 @@
       "Bash(bash /private/tmp/claude-501/-Users-shivamsharma-Projects-einfachlernen/0f341538-f17c-49dd-9214-142a6e99de8a/scratchpad/guardcmds.sh)",
       "Bash(psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -t -c \"select 'de_words: '||count\\(*\\) from de_words union all select 'de_redemittel: '||count\\(*\\) from de_redemittel union all select 'tables: '||count\\(*\\) from information_schema.tables where table_schema='public';\")",
       "Bash(docker exec *)",
-      "Bash(bash /private/tmp/claude-501/-Users-shivamsharma-Projects-einfachlernen/0f341538-f17c-49dd-9214-142a6e99de8a/scratchpad/guardcmds2.sh)"
+      "Bash(bash /private/tmp/claude-501/-Users-shivamsharma-Projects-einfachlernen/0f341538-f17c-49dd-9214-142a6e99de8a/scratchpad/guardcmds2.sh)",
+      "Bash(supabase status *)",
+      "Bash(python3 -)"
     ],
     "deny": [
       "Bash(supabase db push:*)",

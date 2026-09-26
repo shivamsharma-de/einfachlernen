@@ -18,7 +18,7 @@ export const LEAD_ONLY = [
   /^CLAUDE\.md$/,
   /^vitest\.config\.ts$/,
   /^supabase\/config\.toml$/,
-  /^scripts\/agents\//,
+  /^scripts\/(agents|pipeline)\//,
   /^\.claude\/settings\.json$/,
   // Already applied to the remote project — nobody edits these.
   /^supabase\/migrations\/00[1-5]_/,

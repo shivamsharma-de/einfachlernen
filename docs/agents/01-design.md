@@ -34,7 +34,9 @@ states) and ships them as React Native components, so the frontend agent compose
 - `AuthButton`: Google and Apple must follow each provider's brand rules (Apple: black/white button, Apple
   logo, "Mit Apple anmelden"; Google: standard G mark and "Mit Google anmelden"). Use provider-supplied assets
   only; put them in `assets/auth/` and note their source in `docs/design/v3-screens.md`.
-- `LevelOption`: level, one-line German description, word count, `EstimatedNote` for B2–C2.
+- `LevelOption`: level, one-line German description, word count, `EstimatedNote` when `estimated` is true.
+  `estimated` now means "this level still holds low-confidence words" — it is driven by per-word
+  `level_source`, not hardcoded to B2–C2 (PRD F2.5, D12). Keep the prop as-is; only the meaning changed.
 - `ScanCandidateRow`: checkbox ≥44pt, article + word + meaning, `LevelBadge`, `OriginTag` for `origin:'new'`,
   expandable example.
 - `PageThumbStrip`: up to `max` thumbs (5), remove "×" on each, trailing "+" tile.

@@ -15,7 +15,7 @@ Status legend: ✅ built · 🟡 partial / uncommitted · ⬜ not started.
 ## 1. Product in one paragraph
 
 A German learner signs in, picks the CEFR level they are training for (A1–C2), and gets a deck of flashcards
-drawn from an authoritative word list for that level. Each card shows the word with its article, its meaning,
+drawn from a frequency-ordered, confidence-scored word list for that level. Each card shows the word with its article, its meaning,
 grammar forms and two example sentences. The deck is shuffled and can be dipped into many times a day; a
 spaced-repetition scheduler decides what is due. The second feature is the camera: the learner photographs one
 or more pages of a German text, the app finds the words on those pages that are worth learning *for this
@@ -25,7 +25,7 @@ learner*, and turns them into cards in the same deck.
 
 **Goals (this release)**
 1. Sign-in to deck in under 60 seconds for a new user.
-2. A credible word list for every level: official lists for A1–B1, clearly-labelled estimated lists for B2–C2.
+2. A credible word list for every level: ~10,000 words from open corpora, each with a measured level confidence, and only high-confidence words shown as settled (D12).
 3. Every card complete: article, meaning, grammar, two example sentences — no empty backs.
 4. Scan 1–5 pages → reviewed list of relevant words → imported into the deck in under 30 seconds per page.
 
@@ -69,7 +69,7 @@ not a layout change.
 | F2.2 | Level is written to `profiles.cefr_level`; `onboarding_complete=true`. Single source of truth (D1). | P0 |
 | F2.3 | Onboarding asks for daily new-card count: 5 / 10 / 20 (default 10) → `profiles.daily_new_cards`. | P1 |
 | F2.4 | Level changeable only in Profil; changing it does **not** delete progress — it changes which new cards are introduced. | P0 |
-| F2.5 | B2–C2 options carry a "Wortliste geschätzt" note (see F5). | P0 |
+| F2.5 | The "Wortliste geschätzt" note is shown **per word by confidence**, not per level: any word with `level_source='estimated'` carries it. With the ensemble gate most levels are mostly `derived`, so the note marks genuine uncertainty rather than blanketing B2–C2. | P0 |
 
 ### F3 — Level deck & cards · P0 · 🟡
 
@@ -113,7 +113,7 @@ Exists for one image, but only keeps words that are in the 168-word catalogue �
 | ID | Requirement | Pri |
 |---|---|---|
 | F4.1 | Capture **1–5 pages** per scan session with `expo-camera`; thumbnail strip, retake/remove a page, "Auswerten". Also allow picking from photo library. | P0 |
-| F4.2 | Each page resized client-side to long edge ≤ 1600px, JPEG q≈0.7 (`expo-image-manipulator`) before upload. | P0 |
+| F4.2 | Each page resized client-side to long edge ≤ **1280px**, JPEG q≈0.7 (`expo-image-manipulator`) before upload. Vision input is billed by pixel area, so 1280 caps a page near ~1,200 tokens against ~2,450 at 1600 — roughly 35% off every scan. If OCR accuracy on small print suffers, raise it back and say so. | P0 |
 | F4.3 | `scan-words` processes all pages in one call; dedupes lemmas across pages. | P0 |
 | F4.4 | **Relevance rule** (D10): a word is shown if it is (a) a content word, (b) not already in the user's deck, and (c) at or above the user's level — catalogue level if matched, model-estimated level otherwise. Everything else is counted in the status line ("42 erkannt · 12 schon im Deck · 18 unter deinem Niveau"). | P0 |
 | F4.5 | **Words not in the catalogue are no longer dropped** (supersedes v2 §4.2 / design-spec §6.2). The vision pass returns article, word type, English meaning and an estimated level for every word; unmatched words become private `user_words` on import, tagged "Neu". | P0 |
@@ -135,19 +135,21 @@ deck, each with article (for nouns) and meaning; import → they appear in the d
 
 | ID | Requirement | Pri |
 |---|---|---|
-| F5.1 | **A1–B1: official lists.** Ingest the Goethe-Zertifikat A1, A2, B1 Wortlisten (≈650 / ≈1,300 / ≈2,400 cumulative entries, approx.). Level = first list the word appears in. `level_source='official'`. | P0 |
-| F5.2 | **B2–C2: estimated.** No official lists exist. Derive candidates from a corpus frequency list, exclude everything already at A1–B1, band by frequency (B2 ≈ next 2,000, C1 ≈ next 3,000, C2 beyond), then LLM-check each for usefulness. `level_source='estimated'`, shown in UI. | P0 |
+| F5.1 | **Open corpora only — no licensed wordlists** (decision D12). Candidate pool from the Leipzig Corpora Collection German frequency list, lemmatised and filtered to ~10,000 teachable entries. Sources, licences and SHA256 recorded per file. | P0 |
+| F5.2 | **Level is derived, and its confidence is measured.** Four independent signals — written frequency band (cumulative A1 ≈650 / A2 ≈1,300 / B1 ≈2,400 / B2 ≈4,400 / C1 ≈7,400 / C2 ≈10,000), spoken:written ratio, morphological complexity, and three model samples. A word is `level_source='derived'` only when frequency band and all three samples agree within one level and `level_confidence` clears the calibrated threshold; otherwise `'estimated'` and held at `review_status='draft'`. | P0 |
 | F5.3 | Every row gets: article, word_type, english, forms, 2 examples — generated in bulk by the Anthropic **Batch API** (cheaper, async), written with `review_status='draft'`. | P0 |
-| F5.4 | Human review: a CSV export/import loop so a reviewer can mark rows `reviewed`; only `reviewed` rows enter level decks. For MVP, A1–A2 must be fully reviewed; B1+ may ship with automated checks only (article/plural verified against Wiktionary data). | P0 |
+| F5.4 | **Calibration replaces bulk review.** A ~300-word gold set (uncontroversial levels, all six bands) is hand-checked once, ~2 hours. The ensemble is scored against it; the gate threshold is chosen from that table and recorded. Ship only if within-one-level accuracy ≥ 85% — below that, stop and report. Grammar is verified per row against Wiktionary, not by a human. | P0 |
 | F5.5 | `frequency_rank` on every row, so new cards are introduced most-useful-first. | P0 |
 | F5.6 | Map every word to one of the canonical Themen (existing `thema` column). | P1 |
 
-**⚠ Licensing — must be cleared before a public/commercial release.** The Goethe-Institut wordlists are
-published in their exam handbooks under Goethe's copyright; Klett/Hueber lists are publisher-copyrighted;
-frequency lists such as DeReWo (IDS Mannheim) carry their own terms. Using them for a private prototype is
-different from shipping them in a commercial app. The ingest pipeline records `source` per row so any source
-can be swapped out. Open-licensed fallbacks: Wiktionary (CC BY-SA) for forms/articles, Leipzig Corpora
-Collection frequency lists. **Not legal advice — confirm terms with each source.**
+**Decision D12 — no licensed wordlists, levels are derived and measured.** Goethe/telc/publisher lists are
+copyrighted and are not used. Frequency rank is an observed property of a corpus, not a creative work, so
+the open route is clean; the level assignment is our own method, and its accuracy is a number from the gold
+set rather than borrowed authority. Consequence to accept: **our bands will not match Goethe's exactly** —
+a learner cramming for a specific exam will meet words in their deck that are not on that exam's list. The
+product claim is "the ~10,000 most useful German words, banded by level and ordered by frequency". Sources,
+licences and verification steps: `docs/runbooks/content-sources.md`. **Not legal advice — confirm terms with
+each source at download time.**
 
 ### F6 — Profile & daily progress · P0 · 🟡
 
@@ -192,8 +194,8 @@ Summary — exact columns in `docs/agents/CONTRACTS.md` §1.
 | Q1 | New cards per day default | 10 |
 | Q2 | Relevance: at-or-above vs strictly-above level | at-or-above (D10) |
 | Q3 | Should scanned unknown words ever be promoted to the global catalogue? | Not in this release (D11) |
-| Q4 | Who reviews A1–A2 content, and how long do they have? | Unassigned — **blocks F5.4** |
-| Q5 | Commercial release or personal/non-commercial? | Decides licensing work in F5 |
+| Q4 | Who reviews A1–A2 content, and how long do they have? | **Resolved by D12** — no bulk review. One person spot-checks the ~300-word gold set once (~2h); the gate does the rest. |
+| Q5 | Commercial release or personal/non-commercial? | **No longer gates the wordlist** (D12). Still relevant to anything redistributed under CC BY-SA — currently only the build-time Wiktionary extract. |
 | Q6 | Apple Developer account available? | Needed for F1.5 only |
 
 ## 8. Release checklist

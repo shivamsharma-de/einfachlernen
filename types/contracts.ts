@@ -8,7 +8,16 @@
  */
 import type { Article, CEFRLevel, WordType } from './index';
 
-export type LevelSource = 'official' | 'estimated';
+/**
+ * How a word's CEFR level was decided.
+ * - 'derived'   — passed the ensemble agreement gate (frequency band, spoken:written
+ *                 ratio, morphology, and 3 model samples within one level of each other)
+ *                 and the pipeline is calibrated against the gold set. Shown plainly.
+ * - 'estimated' — signals disagreed, or the word is a scan word the model levelled
+ *                 alone. Carries the "Wortliste geschätzt" note in the UI.
+ * No 'official': the catalogue is built from open corpora, not a licensed exam list.
+ */
+export type LevelSource = 'derived' | 'estimated';
 export type WordOrigin = 'catalogue' | 'scan';
 export type Grade = 0 | 1 | 2 | 3; // Nochmal | Schwer | Gut | Leicht
 
@@ -23,6 +32,8 @@ export interface DeckWord {
   english: string;
   level: CEFRLevel;
   level_source: LevelSource;
+  /** 0–1 ensemble agreement. null for scan words, which have one signal only. */
+  level_confidence: number | null;
   forms: Record<string, unknown>;
   example_de: string | null;
   example_en: string | null;

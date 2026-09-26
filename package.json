@@ -12,7 +12,8 @@
     "bundle": "expo export --platform ios --output-dir .expo-bundle-check",
     "agents:check": "node scripts/agents/check-ownership.mjs",
     "agents:prompt": "bash scripts/agents/prompt.sh",
-    "agents:status": "node scripts/agents/status.mjs"
+    "agents:status": "node scripts/agents/status.mjs",
+    "content:status": "node scripts/pipeline/dashboard.mjs"
   },
   "dependencies": {
     "@expo/ngrok": "^4.1.0",

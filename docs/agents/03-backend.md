@@ -23,7 +23,8 @@ function, `u_` word support, the session builder + shuffle, and a stable `lib/ap
    `logActivity`; when offline, write to the `lib/progress.ts` buffer and flush on next success.
    Tests for session composition with a mocked Supabase client.
 3. **`scan-words` v3 — F4.3–F4.5, F4.9** (CONTRACTS §2.2). One vision request with all pages as separate
-   image blocks. Structured output per word: `surface, lemma, type, article, english, cefr_estimate,
+   image blocks. Set `output_config.effort` explicitly — reading printed text is not reasoning-ceiling
+   work, and the unset default runs high, which is a large share of scan output tokens. Structured output per word: `surface, lemma, type, article, english, cefr_estimate,
    example_de, example_en, page`. Then: dedupe by `lower(lemma)`; match `de_words.lemma_key`; catalogue level
    and `level_source='official'` override estimates; drop words already in the caller's `word_progress` or
    `user_words`; apply relevance D10 (at or above level); count the rest into `counts`. Rate limit by summing
@@ -36,8 +37,8 @@ function, `u_` word support, the session builder + shuffle, and a stable `lib/ap
    row's `forms`/`example_*` via service role only after checking ownership). Rate limit 200/hour/user.
    Guarantee exactly 2 examples.
 6. **`lib/api.ts`** — implement every stub from CONTRACTS §4; map every function error code to German text
-   (extend the `MESSAGES` map in `lib/ocr.ts`). `preparePage` uses `expo-image-manipulator` (long edge 1600,
-   JPEG 0.7, base64). `prefetchEnrichment` is fire-and-forget with an in-memory de-dupe.
+   (extend the `MESSAGES` map in `lib/ocr.ts`). `preparePage` uses `expo-image-manipulator` (long edge **1280**,
+   JPEG 0.7, base64 — vision is billed by pixel area, see PRD F4.2). `prefetchEnrichment` is fire-and-forget with an in-memory de-dupe.
 7. Replace hard-coded `MODEL` constants with `Deno.env.get('ANTHROPIC_MODEL_TEXT' | 'ANTHROPIC_MODEL_VISION')`,
    failing with `ai_not_configured` 500 when unset.
 8. Shared Deno helpers in `supabase/functions/_shared/` (cors, json, auth, rate limit) — remove duplication.

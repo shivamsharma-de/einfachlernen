@@ -22,7 +22,7 @@ An agent writes **only** inside its own paths. Reading anything is fine.
 | `supabase/functions/**`, `lib/**` (except `lib/supabase.ts`), `lib/__tests__/**` | **backend** |
 | `components/**`, `constants/Colors.ts`, `docs/design/**`, `assets/**` | **design** |
 | `app/**`, `hooks/**`, `context/**`, `_screens_auth/**` (to be moved into `app/`) | **frontend** |
-| `types/contracts.ts`, `docs/agents/CONTRACTS.md`, `package.json`, `app.json`, `lib/supabase.ts`, `types/index.ts`, `CLAUDE.md`, `vitest.config.ts`, `supabase/config.toml`, `scripts/agents/**`, `.claude/settings.json` | **lead only** (bootstrap / merges) |
+| `types/contracts.ts`, `docs/agents/CONTRACTS.md`, `package.json`, `app.json`, `lib/supabase.ts`, `types/index.ts`, `CLAUDE.md`, `vitest.config.ts`, `supabase/config.toml`, `scripts/agents/**`, `scripts/pipeline/**`, `.claude/settings.json` | **lead only** (bootstrap / merges) |
 | `docs/agents/status/<agent>.md` | that agent |
 
 `npm run agents:check <agent>` checks your branch against this table; run it before every commit, and
@@ -40,14 +40,22 @@ Idempotent, like 001–005.
 ```sql
 -- de_words
 ALTER TABLE de_words
-  ADD COLUMN IF NOT EXISTS level_source   text NOT NULL DEFAULT 'official'
-       CHECK (level_source IN ('official','estimated')),
-  ADD COLUMN IF NOT EXISTS review_status  text NOT NULL DEFAULT 'reviewed'
+  ADD COLUMN IF NOT EXISTS level_source     text NOT NULL DEFAULT 'estimated'
+       CHECK (level_source IN ('derived','estimated')),
+  ADD COLUMN IF NOT EXISTS level_confidence real
+       CHECK (level_confidence IS NULL OR level_confidence BETWEEN 0 AND 1),
+  ADD COLUMN IF NOT EXISTS review_status    text NOT NULL DEFAULT 'draft'
        CHECK (review_status IN ('draft','reviewed')),
-  ADD COLUMN IF NOT EXISTS frequency_rank integer,
-  ADD COLUMN IF NOT EXISTS lemma_key      text GENERATED ALWAYS AS (lower(german)) STORED;
+  ADD COLUMN IF NOT EXISTS frequency_rank   integer,
+  ADD COLUMN IF NOT EXISTS lemma_key        text GENERATED ALWAYS AS (lower(german)) STORED;
 CREATE INDEX IF NOT EXISTS de_words_lemma_key_idx ON de_words (lemma_key);
 CREATE INDEX IF NOT EXISTS de_words_level_rank_idx ON de_words (level, frequency_rank);
+
+-- No 'official' level_source: there is no licensed exam wordlist in this project.
+-- 'derived' means the word passed the ensemble agreement gate (F5.2); 'estimated'
+-- means the signals disagreed, or a scan levelled it with the model alone.
+-- Defaults are the conservative ones, so a row that skips the pipeline never
+-- reaches a learner claiming more confidence than it earned.
 
 -- profiles
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS daily_new_cards integer NOT NULL DEFAULT 10
@@ -83,12 +91,12 @@ ALTER TABLE scan_results ADD COLUMN IF NOT EXISTS page_count integer NOT NULL DE
 -- deck_words: one read shape for the client. security_invoker so RLS of the
 -- caller applies to user_words.
 CREATE OR REPLACE VIEW deck_words WITH (security_invoker = true) AS
-  SELECT id, german, article, word_type, english, level, level_source, forms,
-         example_de, example_en, frequency_rank, thema, 'catalogue'::text AS origin
+  SELECT id, german, article, word_type, english, level, level_source, level_confidence,
+         forms, example_de, example_en, frequency_rank, thema, 'catalogue'::text AS origin
     FROM de_words WHERE review_status = 'reviewed'
   UNION ALL
-  SELECT id, german, article, word_type, english, level, 'estimated', forms,
-         example_de, example_en, NULL, NULL, 'scan'
+  SELECT id, german, article, word_type, english, level, 'estimated', NULL,
+         forms, example_de, example_en, NULL, NULL, 'scan'
     FROM user_words WHERE user_id = auth.uid();
 ```
 
@@ -126,7 +134,7 @@ Response `{ imported: number, word_ids: string[] }`. Errors: `scan_not_found` 40
 ```ts
 import type { Article, CEFRLevel, WordType } from './index';
 
-export type LevelSource = 'official' | 'estimated';
+export type LevelSource = 'derived' | 'estimated';   // no 'official' — no licensed list
 export type WordOrigin = 'catalogue' | 'scan';
 export type Grade = 0 | 1 | 2 | 3; // Nochmal | Schwer | Gut | Leicht
 
@@ -141,6 +149,7 @@ export interface DeckWord {
   english: string;
   level: CEFRLevel;
   level_source: LevelSource;
+  level_confidence: number | null;   // 0–1 ensemble agreement; null for scan words
   forms: Record<string, unknown>;
   example_de: string | null;
   example_en: string | null;
@@ -184,7 +193,7 @@ export interface ScanCandidate {
   word_type: WordType | 'other';
   english: string;
   level: CEFRLevel;
-  level_source: LevelSource;                    // 'official' if matched in catalogue
+  level_source: LevelSource;                    // catalogue match inherits its value; unmatched → 'estimated'
   origin: 'catalogue' | 'new';
   word_id: string | null;                       // de_words id when origin='catalogue'
   example_de: string | null;
@@ -231,7 +240,7 @@ export function getEnrichment(wordId: string): Promise<Result<WordEnrichment>>;
 export function prefetchEnrichment(wordIds: string[]): void;
 
 // scan
-export function preparePage(uri: string): Promise<string>;                   // resize ≤1600px, JPEG .7, → base64
+export function preparePage(uri: string): Promise<string>;                   // resize ≤1280px, JPEG .7, → base64
 export function scanPages(imagesBase64: string[], level: CEFRLevel): Promise<Result<ScanResponse>>;
 export function importScan(scanId: string, keys: string[]): Promise<Result<{ imported: number; word_ids: string[] }>>;
 
