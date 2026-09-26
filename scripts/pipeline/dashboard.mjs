@@ -122,8 +122,14 @@ function pipelineSection() {
     const artefact = onDisk.find((f) => f.startsWith(key.slice(0, 2) + '_'));
     const rows = artefact ? countLines(join(stageDir, artefact)) : null;
 
+    // A running stage's state.json entry is from its LAST completed run, so it
+    // under-reports live progress. Trust the file on disk while it is running.
+    const live = status === 'running' && rows != null ? rows : (s.out ?? rows);
     let detail = '';
-    if (s.out != null || rows != null) detail += `${n(s.out ?? rows)} rows`;
+    if (live != null) detail += `${n(live)} rows`;
+    if (status === 'running' && rows != null && s.in) {
+      detail += c.d(` of ${n(s.in)}  (${((100 * rows) / s.in).toFixed(0)}%)`);
+    }
     if (s.rejected) detail += c.y(` · ${n(s.rejected)} rejected`);
     if (s.costUsd) {
       totalCost += s.costUsd;
@@ -220,9 +226,10 @@ function persistenceSection() {
         const [lvl, reviewed, draft, derived, conf] = line.split('\t');
         tR += Number(reviewed);
         tD += Number(draft);
+        const confCell = conf === undefined || conf === '' ? '—' : conf;
         out.push(
           `  ${c.b(lvl.padEnd(14))}${String(reviewed).padStart(8)}${String(draft).padStart(9)}` +
-            `${String(derived).padStart(9)}${String(conf === '' ? '—' : conf).padStart(11)}`,
+            `${String(derived).padStart(9)}${String(confCell).padStart(11)}`,
         );
       }
       out.push(c.d(`  ${'total'.padEnd(14)}${String(tR).padStart(8)}${String(tD).padStart(9)}`));
