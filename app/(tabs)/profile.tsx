@@ -129,6 +129,16 @@ export default function ProfileScreen() {
             <Text style={styles.levelHint}>
               Bestimmt, welche Wörter du im Deck und beim Scannen bekommst.
             </Text>
+            {/* The chips change the level in one tap; the full picker is where
+                the real word counts and the "Wortliste geschätzt" note live. */}
+            <TouchableOpacity
+              onPress={() => router.push('/onboarding')}
+              style={styles.levelLink}
+              accessibilityRole="link"
+              accessibilityLabel="Alle Niveaus mit Wortzahlen ansehen"
+            >
+              <Text style={styles.levelLinkText}>Alle Niveaus mit Wortzahlen ansehen</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -197,6 +207,8 @@ const styles = StyleSheet.create({
 
   levelName: { ...Type.bodyL, color: Colors.white },
   levelHint: { ...Type.caption, color: Colors.textMuted },
+  levelLink: { minHeight: HIT, justifyContent: 'center' },
+  levelLinkText: { ...Type.caption, color: Colors.purple },
 
   card: {
     backgroundColor: Colors.surface,
