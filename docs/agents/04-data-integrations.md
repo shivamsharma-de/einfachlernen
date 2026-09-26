@@ -27,22 +27,22 @@ reach a learner claiming confidence it did not earn. Backfill the existing 168 r
 `supabase/tests/006_rls.sql`: assertions that user A cannot read/write user B's `user_words`,
 `word_progress`, `scan_results`, and that `deck_words` shows A only A's scan words.
 
-### 2. Content pipeline — F5, in `scripts/content/` (TypeScript, `npx tsx`)
+### 2. Content pipeline — F5, in `scripts/content/` (plain `.mjs`, run with `node` — see that folder's README for why not tsx)
 
 Each stage reads and writes files under `content/`, so every stage is re-runnable, diffable and
 **resumable**. No stage ever re-spends on work a previous run completed.
 
 | Stage | Does | Writes |
 |---|---|---|
-| `00_fetch_sources.ts` | download the open corpora, record URL + licence + SHA256 per file | `content/sources/*`, `content/sources/MANIFEST.json` |
-| `01_pool.ts` | lemmatise, drop proper nouns / abbreviations / corpus artifacts / non-words, cap at ~15k candidates | `content/stage/01_pool.jsonl` |
+| `00_fetch_sources.mjs` | download the open corpora, record URL + licence + SHA256 per file | `content/sources/*`, `content/sources/MANIFEST.json` |
+| `01_pool.mjs` | lemmatise, drop proper nouns / abbreviations / corpus artifacts / non-words, cap at ~15k candidates | `content/stage/01_pool.jsonl` |
 | `02_signals.ts` | deterministic signals per word: written frequency rank, spoken:written ratio, morphology score (compound length, derivational affixes) | `content/stage/02_signals.jsonl` |
-| `03_level_batch.ts` | model CEFR judgment, **3 samples per word**, Message Batches | `content/stage/03_levels.jsonl` |
-| `04_gate.ts` | ensemble → `level`, `level_confidence` (0–1), `level_source`. Agreement gate decides `derived` vs `estimated` | `content/stage/04_levelled.jsonl` |
-| `05_calibrate.ts` | score the ensemble against the gold set; report accuracy and tune the gate threshold | `content/gold/report.json` |
-| `06_enrich_batch.ts` | article, forms, english, 2 examples, thema — **only for words that pass the gate** | `content/stage/06_enriched.jsonl` |
-| `07_validate.ts` | Wiktionary cross-check (article, plural) + rule checks; failures escalate to the stronger model once, then reject | `content/stage/07_rejects.csv` |
-| `08_seed.ts` | `INSERT … ON CONFLICT (id) DO UPDATE`, existing 168 ids stable, new ids in the existing format | `supabase/seeds/010_de_words_v3.sql` |
+| `03_level.mjs` | **one call does four jobs**: lemma, POS, teachability, CEFR level — **3 samples per word** | `content/stage/03_levels.jsonl` |
+| `04_gate.mjs` | collapse forms → lemmas (summing frequency), re-rank, read the band, then ensemble → `level`, `level_confidence`, `level_source` | `content/stage/04_levelled.jsonl` |
+| `05_calibrate.mjs` | score the ensemble against the gold set; report accuracy and tune the gate threshold | `content/gold/report.json` |
+| `06_enrich.mjs` | article, forms, english, example, thema — **only for words that pass the gate** | `content/stage/06_enriched.jsonl` |
+| `07_validate.mjs` | Wiktionary cross-check (article, plural) + rule checks; failures escalate to the stronger model once, then reject | `content/stage/07_rejects.csv` |
+| `08_seed.mjs` | `INSERT … ON CONFLICT (id) DO UPDATE`, existing 168 ids stable, new ids in the existing format | `supabase/seeds/010_de_words_v3.sql` |
 
 Plus `scripts/content/README.md` with the exact run order.
 
