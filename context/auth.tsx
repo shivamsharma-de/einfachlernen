@@ -7,6 +7,23 @@ import { identify, reset } from '../lib/analytics';
 
 WebBrowser.maybeCompleteAuthSession();
 
+/**
+ * Dev-only auto sign-in (temporary — remove once real sign-in is built).
+ *
+ * `_screens_auth/` is not wired into the router yet (PRD F1.1–F1.6), so there
+ * is currently no reachable UI that can call `signInWithEmail`. Without a
+ * session, `user` stays null forever and app/index.tsx's onboarding gate never
+ * fires — the level picker and deck become unreachable by any path. Per the
+ * owner: skip building sign-in for now and unblock testing instead.
+ *
+ * Gated on `__DEV__`, so it can never run in a production build. The account
+ * is a confirmed test user created directly via the GoTrue admin API
+ * (`email_confirm: true`), not through app UI.
+ */
+const DEV_AUTO_LOGIN = __DEV__;
+const DEV_EMAIL = 'dev-tester@einfachlernen.local';
+const DEV_PASSWORD = 'DevTest123!';
+
 interface AuthContextType {
   session: Session | null;
   user: User | null;
@@ -28,7 +45,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (!session && DEV_AUTO_LOGIN) {
+        // Swallow failures (offline, account not yet created on this backend)
+        // and fall through to the normal signed-out state rather than crash.
+        const { error } = await supabase.auth.signInWithPassword({
+          email: DEV_EMAIL,
+          password: DEV_PASSWORD,
+        });
+        if (error) console.warn('[dev-auto-login]', error.message);
+        // onAuthStateChange below picks up the resulting session; nothing
+        // further to do here on success.
+        if (!error) return;
+      }
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) fetchProfile(session.user.id);
