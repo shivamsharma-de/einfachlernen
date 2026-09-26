@@ -52,6 +52,16 @@ export function useDeckSession(userId: string | null, level: CEFRLevel) {
   /** The API's own German "nothing due" line, kept so the empty state can show it. */
   const [nothingDue, setNothingDue] = useState<string | null>(null);
   const [revealed, setRevealed] = useState(false);
+  /**
+   * Which face is CURRENTLY showing. Separate from `revealed` on purpose:
+   * `revealed` means "this card has been checked at least once" and is what
+   * unlocks grading (footer swap, swipeEnabled) — it only ever turns on and
+   * stays on for the card's lifetime. Flipping back to re-read the English
+   * after already seeing the answer is not a second attempt at the card, so
+   * it must not re-lock grading; `facingBack` is what the tap gesture toggles
+   * freely once `revealed` is true.
+   */
+  const [facingBack, setFacingBack] = useState(false);
   const [grading, setGrading] = useState(false);
   const [sessionXp, setSessionXp] = useState(0);
   const [reviewed, setReviewed] = useState(0);
@@ -72,6 +82,7 @@ export function useDeckSession(userId: string | null, level: CEFRLevel) {
     setError(null);
     setNothingDue(null);
     setRevealed(false);
+    setFacingBack(false);
 
     if (!userId) {
       if (token === loadToken.current) setLoading(false);
@@ -161,19 +172,33 @@ export function useDeckSession(userId: string | null, level: CEFRLevel) {
     return card.enrichment ?? enrichments[card.word.id] ?? null;
   }, [enrichments]);
 
-  const reveal = useCallback(() => {
-    if (revealed || !current) return;
-    setRevealed(true);
+  /**
+   * Tapping the card. First tap unlocks grading for good (`revealed`) and
+   * shows the back; every tap after that just toggles which face is showing —
+   * looking at the English again is review, not a second attempt, so it must
+   * never re-lock the grade buttons or the swipe gesture.
+   */
+  const flip = useCallback(() => {
+    if (!current) return;
 
-    // Only spend a generation on a card the learner actually turned over.
-    if (current.enrichment || enrichments[current.word.id]) return;
-    const wordId = current.word.id;
-    setEnriching(true);
-    void getEnrichment(wordId).then((result) => {
-      setEnriching(false);
-      // A failure is not an error state: the catalogue fields are already there.
-      if (result.ok) setEnrichments((prev) => ({ ...prev, [wordId]: result.data }));
-    });
+    if (!revealed) {
+      setRevealed(true);
+      setFacingBack(true);
+
+      // Only spend a generation on a card the learner actually turned over.
+      if (!current.enrichment && !enrichments[current.word.id]) {
+        const wordId = current.word.id;
+        setEnriching(true);
+        void getEnrichment(wordId).then((result) => {
+          setEnriching(false);
+          // A failure is not an error state: catalogue fields are already there.
+          if (result.ok) setEnrichments((prev) => ({ ...prev, [wordId]: result.data }));
+        });
+      }
+      return;
+    }
+
+    setFacingBack((f) => !f);
   }, [revealed, current, enrichments]);
 
   const grade = useCallback(async (value: Grade) => {
@@ -184,6 +209,7 @@ export function useDeckSession(userId: string | null, level: CEFRLevel) {
       const next = await gradeCard(session, value);
       setSession(next);
       setRevealed(false);
+      setFacingBack(false);
       setReviewed((n) => n + 1);
       setSessionXp((xp) => xp + GRADES[value].xp);
       track('card_graded', { grade: value, origin });
@@ -197,6 +223,7 @@ export function useDeckSession(userId: string | null, level: CEFRLevel) {
     if (!session) return;
     setSession(shuffleRemaining(session));
     setRevealed(false);
+    setFacingBack(false);
     track('deck_shuffled');
   }, [session]);
 
@@ -208,6 +235,7 @@ export function useDeckSession(userId: string | null, level: CEFRLevel) {
     session,
     current,
     revealed,
+    facingBack,
     grading,
     enriching,
     enrichment: enrichmentFor(current),
@@ -215,7 +243,7 @@ export function useDeckSession(userId: string | null, level: CEFRLevel) {
     reviewed,
     position: session ? Math.min(session.position + 1, session.queue.length) : 0,
     total: session?.queue.length ?? 0,
-    reveal,
+    flip,
     grade,
     shuffle,
     /** Retry after an error, and "Weiter lernen" / "Neue Wörter lernen" (F3.8). */

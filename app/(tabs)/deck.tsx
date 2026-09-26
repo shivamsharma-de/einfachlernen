@@ -152,12 +152,16 @@ export default function DeckScreen() {
             key={`${deck.session?.id ?? 'session'}:${deck.reviewed}:${card.word.id}`}
             cycle={deck.reviewed}
             card={card}
-            revealed={deck.revealed}
+            // facingBack drives which side is CURRENTLY shown and toggles
+            // freely once revealed; revealed itself (below) only ever turns on
+            // — it gates grading, not the animation, so flipping back to
+            // re-read the English never disables swiping or hides GradeRow.
+            facingBack={deck.facingBack}
             enrichment={deck.enrichment}
             enriching={deck.enriching}
             height={cardHeight}
             swipeEnabled={deck.revealed && !deck.grading}
-            onFlip={deck.reveal}
+            onFlip={deck.flip}
             onSwipeRight={onSwipeRight}
             onSwipeLeft={onSwipeLeft}
           />
@@ -187,7 +191,7 @@ export default function DeckScreen() {
             onGrade={(g) => { void deck.grade(g); }}
           />
         ) : (
-          <PillButton label="Aufdecken" variant="ghost" onPress={deck.reveal} />
+          <PillButton label="Aufdecken" variant="ghost" onPress={deck.flip} />
         )}
       </View>
     </SafeAreaView>
@@ -197,13 +201,14 @@ export default function DeckScreen() {
 // ───────────────────────────────────────────────────────── swipe card ──
 
 function SwipeCard({
-  card, cycle, revealed, enrichment, enriching, height, swipeEnabled,
+  card, cycle, facingBack, enrichment, enriching, height, swipeEnabled,
   onFlip, onSwipeRight, onSwipeLeft,
 }: {
   card: DeckCard;
   /** Increments once per graded card; see the reset effect below. */
   cycle: number;
-  revealed: boolean;
+  /** Which face is currently showing — toggles freely once grading is unlocked. */
+  facingBack: boolean;
   enrichment: WordEnrichment | null;
   enriching: boolean;
   height: number;
@@ -250,17 +255,17 @@ function SwipeCard({
   // The actual reveal/un-reveal animation. Runs on a genuine user action (tap
   // to reveal) or on "Mischen" un-revealing the same card in place (no
   // remount) — never on mount, since the effect above has already snapped the
-  // value by the time this one's dependency (`revealed`) is first read here.
+  // value by the time this one's dependency (`facingBack`) is first read here.
   useEffect(() => {
     // 130ms: fast enough to read as instant (NFR: flip < 100ms perceived — the
     // face swaps at the halfway point, so the answer is legible at ~65ms).
     Animated.timing(flip, {
-      toValue: revealed ? 1 : 0,
+      toValue: facingBack ? 1 : 0,
       duration: 130,
       easing: Easing.out(Easing.cubic),
       useNativeDriver: true,
     }).start();
-  }, [revealed, flip]);
+  }, [facingBack, flip]);
 
   const panResponder = useMemo(
     () =>
@@ -339,14 +344,18 @@ function SwipeCard({
         onPress={onFlip}
         style={styles.pressArea}
         accessibilityRole="button"
+        // Label follows the face CURRENTLY showing, so VoiceOver reads the
+        // English again after flipping back rather than repeating the German.
+        // Hint follows whether grading is unlocked (swipeEnabled), which stays
+        // true regardless of which face the learner is looking at.
         accessibilityLabel={
-          revealed
+          facingBack
             ? `${card.word.article ? `${card.word.article} ` : ''}${card.word.german}`
             : `${card.word.english}. Karte umdrehen`
         }
         accessibilityHint={
-          revealed
-            ? 'Nach rechts wischen für gelernt, nach links für nochmal. Oder die Knöpfe darunter benutzen.'
+          swipeEnabled
+            ? 'Nach rechts wischen für gelernt, nach links für nochmal. Oder die Knöpfe darunter benutzen. Erneut tippen, um zwischen den Seiten zu wechseln.'
             : 'Tippen, um die deutsche Seite zu sehen'
         }
       >
