@@ -64,6 +64,8 @@ function checkRow(r, wik) {
   return problems;
 }
 
+const NONE = (v) => (!v || v === 'none' || v === '-' ? null : v);
+
 const REPAIR_SCHEMA = {
   type: 'object',
   additionalProperties: false,
@@ -77,11 +79,11 @@ const REPAIR_SCHEMA = {
         required: ['l', 'a', 'e', 'pl', 'pp', 'aux', 'de', 'en'],
         properties: {
           l: { type: 'string' },
-          a: { type: ['string', 'null'], enum: ['der', 'die', 'das', null] },
+          a: { type: 'string', enum: ['der', 'die', 'das', 'none'] },
           e: { type: 'string' },
-          pl: { type: ['string', 'null'] },
-          pp: { type: ['string', 'null'] },
-          aux: { type: ['string', 'null'], enum: ['haben', 'sein', null] },
+          pl: { type: 'string' },
+          pp: { type: 'string' },
+          aux: { type: 'string', enum: ['haben', 'sein', 'none'] },
           de: { type: 'string' },
           en: { type: 'string' },
         },
@@ -156,12 +158,12 @@ await stage('07_validate', async () => {
               if (!base) continue;
               fixedRows.push({
                 ...base,
-                article: w.a ?? null,
+                article: NONE(w.a),
                 english: w.e,
                 forms: {
-                  ...(w.pl ? { plural: w.pl } : {}),
-                  ...(w.pp ? { past_participle: w.pp } : {}),
-                  ...(w.aux ? { auxiliary: w.aux } : {}),
+                  ...(NONE(w.pl) ? { plural: w.pl } : {}),
+                  ...(NONE(w.pp) ? { past_participle: w.pp } : {}),
+                  ...(NONE(w.aux) ? { auxiliary: w.aux } : {}),
                 },
                 example_de: w.de,
                 example_en: w.en,

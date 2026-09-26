@@ -13,7 +13,7 @@
  */
 import { existsSync, appendFileSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { STAGE, arg, ask, chunk, confirmSpend, pmap, requireKey, stage } from './_lib.mjs';
+import { LEVELS, STAGE, arg, ask, chunk, confirmSpend, pmap, requireKey, stage } from './_lib.mjs';
 
 const MODEL = 'claude-haiku-4-5';
 const PER_REQUEST = 20;
@@ -37,12 +37,12 @@ const SCHEMA = {
         required: ['l', 'a', 't', 'e', 'pl', 'pp', 'aux', 'de', 'en', 'th'],
         properties: {
           l: { type: 'string', description: 'the lemma exactly as given' },
-          a: { type: ['string', 'null'], enum: ['der', 'die', 'das', null], description: 'article, nouns only, else null' },
+          a: { type: 'string', enum: ['der', 'die', 'das', 'none'], description: "article; 'none' for non-nouns" },
           t: { type: 'string', enum: ['noun', 'verb', 'adjective', 'adverb', 'other'] },
           e: { type: 'string', description: 'concise English meaning, one line' },
-          pl: { type: ['string', 'null'], description: 'plural form, nouns only, else null' },
-          pp: { type: ['string', 'null'], description: 'Partizip II, verbs only, else null' },
-          aux: { type: ['string', 'null'], enum: ['haben', 'sein', null], description: 'auxiliary, verbs only, else null' },
+          pl: { type: 'string', description: "plural form for nouns; 'none' otherwise" },
+          pp: { type: 'string', description: "Partizip II for verbs; 'none' otherwise" },
+          aux: { type: 'string', enum: ['haben', 'sein', 'none'], description: "auxiliary for verbs; 'none' otherwise" },
           de: { type: 'string', description: 'example sentence in natural German containing the word' },
           en: { type: 'string', description: 'English translation of the example' },
           th: { type: 'string', enum: THEMEN },
@@ -51,6 +51,9 @@ const SCHEMA = {
     },
   },
 };
+
+/** The model answers 'none' where a field does not apply; store that as absent. */
+const NONE = (v) => (!v || v === 'none' || v === '-' ? null : v);
 
 const SYSTEM =
   'You are a German lexicographer writing dictionary entries for a CEFR-aligned vocabulary app. ' +
@@ -62,9 +65,23 @@ const SYSTEM =
 await stage('06_enrich', async () => {
   requireKey();
   const levelled = readJsonl(join(STAGE, '04_levelled.jsonl'));
-  const pool = arg('only-derived') !== null && arg('only-derived') !== false
-    ? levelled.filter((r) => r.level_source === 'derived')
-    : levelled;
+
+  let pool = levelled;
+  if (arg('only-derived') !== null && arg('only-derived') !== false) {
+    pool = pool.filter((r) => r.level_source === 'derived');
+  }
+  // --upto=C1 ships A1–C1 and leaves C2 unenriched. C2 is the thinnest, least
+  // useful end of the catalogue and the most expensive tail to generate, so
+  // capping here is the cheapest real saving available.
+  const upto = arg('upto');
+  if (upto) {
+    const ceiling = LEVELS.indexOf(String(upto).toUpperCase());
+    if (ceiling < 0) throw new Error(`--upto must be one of ${LEVELS.join(', ')}`);
+    const before = pool.length;
+    pool = pool.filter((r) => LEVELS.indexOf(r.level) <= ceiling);
+    console.log(`  --upto=${upto}: ${pool.length} of ${before} lemmas (skipping ${before - pool.length} above ${upto})`);
+  }
+
   const limit = arg('limit') ? Number(arg('limit')) : pool.length;
   const target = pool.slice(0, limit);
 
@@ -123,13 +140,13 @@ await stage('06_enrich', async () => {
               JSON.stringify({
                 ...base,
                 lemma: base.lemma,
-                article: w.a ?? null,
+                article: NONE(w.a),
                 word_type: w.t ?? base.word_type,
                 english: w.e,
                 forms: {
-                  ...(w.pl ? { plural: w.pl } : {}),
-                  ...(w.pp ? { past_participle: w.pp } : {}),
-                  ...(w.aux ? { auxiliary: w.aux } : {}),
+                  ...(NONE(w.pl) ? { plural: w.pl } : {}),
+                  ...(NONE(w.pp) ? { past_participle: w.pp } : {}),
+                  ...(NONE(w.aux) ? { auxiliary: w.aux } : {}),
                 },
                 example_de: w.de,
                 example_en: w.en,

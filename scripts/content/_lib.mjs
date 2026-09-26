@@ -77,9 +77,18 @@ export async function stage(name, fn) {
   try {
     const result = (await fn()) ?? {};
     patchState((s) => {
+      // Spend accumulates across runs: a resumed stage pays only for the new
+      // work, but the total must still reflect everything it has ever cost.
+      const prior = s.stages[name] ?? {};
+      const spentBefore = prior.costUsd ?? 0;
       s.stages[name] = {
-        ...(s.stages[name] ?? {}),
+        ...prior,
         ...result,
+        costUsd: Number((spentBefore + (result.costUsd ?? 0)).toFixed(4)),
+        tokens: {
+          input: (prior.tokens?.input ?? 0) + (result.tokens?.input ?? 0),
+          output: (prior.tokens?.output ?? 0) + (result.tokens?.output ?? 0),
+        },
         status: result.status ?? 'complete',
         startedAt: started,
         finishedAt: new Date().toISOString(),
@@ -142,13 +151,17 @@ export function costOf(model, usage) {
  * One structured-output call. `schema` is raw JSON Schema — the shape the SDK's
  * zod helper emits, used directly so the pipeline needs no zod dependency.
  */
+/** Haiku 4.5 rejects `effort` outright; it is an Opus/Sonnet-tier parameter. */
+const SUPPORTS_EFFORT = (model) => !/haiku/i.test(model);
+
 export async function ask({ model, system, user, schema, maxTokens = 8000, effort }) {
+  const useEffort = effort && SUPPORTS_EFFORT(model);
   const res = await client().messages.create({
     model,
     max_tokens: maxTokens,
     system,
     messages: [{ role: 'user', content: user }],
-    output_config: { format: { type: 'json_schema', schema }, ...(effort ? { effort } : {}) },
+    output_config: { format: { type: 'json_schema', schema }, ...(useEffort ? { effort } : {}) },
   });
   const text = res.content.find((b) => b.type === 'text')?.text ?? '';
   let parsed = null;

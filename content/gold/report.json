@@ -1,0 +1,103 @@
+{
+  "ranAt": "2026-09-26T15:00:59.102Z",
+  "goldSize": 82,
+  "matched": 76,
+  "overall": {
+    "n": 76,
+    "exact": 0.7368421052631579,
+    "withinOne": 0.9605263157894737
+  },
+  "thresholds": [
+    {
+      "threshold": 0.5,
+      "kept": 68,
+      "coverage": 0.8947368421052632,
+      "n": 68,
+      "exact": 0.7941176470588235,
+      "withinOne": 0.9852941176470589
+    },
+    {
+      "threshold": 0.6,
+      "kept": 61,
+      "coverage": 0.8026315789473685,
+      "n": 61,
+      "exact": 0.8032786885245902,
+      "withinOne": 0.9836065573770492
+    },
+    {
+      "threshold": 0.65,
+      "kept": 61,
+      "coverage": 0.8026315789473685,
+      "n": 61,
+      "exact": 0.8032786885245902,
+      "withinOne": 0.9836065573770492
+    },
+    {
+      "threshold": 0.7,
+      "kept": 53,
+      "coverage": 0.6973684210526315,
+      "n": 53,
+      "exact": 0.8490566037735849,
+      "withinOne": 0.9811320754716981
+    },
+    {
+      "threshold": 0.75,
+      "kept": 51,
+      "coverage": 0.6710526315789473,
+      "n": 51,
+      "exact": 0.8823529411764706,
+      "withinOne": 0.9803921568627451
+    },
+    {
+      "threshold": 0.8,
+      "kept": 49,
+      "coverage": 0.6447368421052632,
+      "n": 49,
+      "exact": 0.8979591836734694,
+      "withinOne": 0.9795918367346939
+    },
+    {
+      "threshold": 0.85,
+      "kept": 34,
+      "coverage": 0.4473684210526316,
+      "n": 34,
+      "exact": 0.9705882352941176,
+      "withinOne": 0.9705882352941176
+    },
+    {
+      "threshold": 0.9,
+      "kept": 30,
+      "coverage": 0.39473684210526316,
+      "n": 30,
+      "exact": 0.9666666666666667,
+      "withinOne": 0.9666666666666667
+    }
+  ],
+  "note": "Gold set = the 168 hand-authored de_words rows (single tokens only), levelled by a human before this pipeline existed. Small and not externally audited — treat the numbers as a sanity check on the method, not a certification.",
+  "worst": [
+    {
+      "german": "billig",
+      "level": "A1",
+      "predicted": "B1",
+      "confidence": 0.05,
+      "source": "estimated",
+      "delta": 2
+    },
+    {
+      "german": "orange",
+      "level": "A1",
+      "predicted": "B1",
+      "confidence": 0.36,
+      "source": "estimated",
+      "delta": 2
+    },
+    {
+      "german": "verstehen",
+      "level": "B1",
+      "predicted": "A1",
+      "confidence": 1,
+      "source": "derived",
+      "delta": 2
+    }
+  ]
+}

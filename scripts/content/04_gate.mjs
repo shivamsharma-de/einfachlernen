@@ -81,8 +81,21 @@ await stage('04_gate', async () => {
     L.morph = Math.min(L.morph, sig.morph);
   }
 
-  // ── 3. rank lemmas, read the band
-  const ranked = [...lemmas.values()].sort((a, b) => b.written - a.written);
+  // ── 3. rank lemmas on BOTH corpora, then read the band
+  //
+  // Ranking on written frequency alone put `billig`, `grau`, `hungrig` and
+  // `Entschuldigung` at B1 — they are A1 words that a news corpus simply does
+  // not use. Normalising each corpus to a per-million rate and summing gives
+  // everyday vocabulary its due weight without letting either corpus dominate.
+  const all = [...lemmas.values()];
+  const writtenTotal = all.reduce((a, l) => a + l.written, 0) || 1;
+  const spokenTotal = all.reduce((a, l) => a + l.spoken, 0) || 1;
+  for (const l of all) {
+    l.writtenPM = (l.written / writtenTotal) * 1e6;
+    l.spokenPM = (l.spoken / spokenTotal) * 1e6;
+    l.combinedPM = l.writtenPM + l.spokenPM;
+  }
+  const ranked = all.sort((a, b) => b.combinedPM - a.combinedPM);
   ranked.forEach((l, i) => {
     l.rank = i + 1;
     l.band = bandOf(l.rank);
@@ -97,10 +110,10 @@ await stage('04_gate', async () => {
     const bandDelta = Math.abs(bandIdx - modelMedian);
 
     // The model carries semantic judgment, frequency carries usage evidence.
+    // No spoken-bias term here any more: the rank above is already computed from
+    // both corpora, so applying it again would count the same evidence twice.
     let combined = 0.6 * modelMedian + 0.4 * bandIdx;
     if (l.morph >= 3) combined += 0.4;
-    if (l.spokenBias >= 1.5) combined -= 0.3;
-    else if (l.spokenBias <= -2) combined += 0.3;
     const finalIdx = Math.max(0, Math.min(LEVELS.length - 1, Math.round(combined)));
 
     // Confidence: sample agreement first, then band agreement.
