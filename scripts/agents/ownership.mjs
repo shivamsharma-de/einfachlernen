@@ -52,14 +52,26 @@ export const OWNED = {
   ],
 };
 
-/** Shell commands no agent may run — they reach the remote project or the network. */
+/**
+ * Commands nobody runs from a Claude Code session, lead included — they act on
+ * the remote Supabase project or on GitHub. Deploying is a deliberate human
+ * step from docs/runbooks/deploy.md, not something an agent loop does.
+ */
 export const FORBIDDEN_COMMANDS = [
   { re: /\bsupabase\s+db\s+push\b/, why: 'pushes migrations to the REMOTE Supabase project' },
   { re: /\bsupabase\s+link\b/, why: 'links this worktree to the remote Supabase project' },
   { re: /\bsupabase\s+functions\s+deploy\b/, why: 'deploys Edge Functions to the remote project' },
   { re: /\bsupabase\s+secrets\b/, why: 'reads or writes remote project secrets' },
   { re: /\bsupabase\s+projects\b/, why: 'manages remote Supabase projects' },
-  { re: /\bgit\s+push\b/, why: 'pushes a branch; the lead merges and pushes, not you' },
+];
+
+/**
+ * Commands only the lead may run. package.json is lead-owned (§0), so
+ * installing a dependency is the lead's job by design — it is blocked in the
+ * agent worktrees so four branches never fight over the lockfile.
+ */
+export const LEAD_ONLY_COMMANDS = [
+  { re: /\bgit\s+push\b/, why: 'pushes a branch; the lead merges, you rebase onto local main' },
   { re: /\bgh\s+(pr|repo|release)\b/, why: 'acts on GitHub; the lead does that' },
   { re: /\bnpm\s+(i|install|uninstall|add)\b(?!.*--dry-run)/, why: 'changes dependencies — package.json is lead-owned. Request the dependency in your status file' },
   { re: /\b(yarn|pnpm|bun)\s+(add|install|remove)\b/, why: 'changes dependencies — package.json is lead-owned' },

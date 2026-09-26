@@ -69,7 +69,16 @@
       "Bash(docker exec *)",
       "Bash(bash /private/tmp/claude-501/-Users-shivamsharma-Projects-einfachlernen/0f341538-f17c-49dd-9214-142a6e99de8a/scratchpad/guardcmds2.sh)",
       "Bash(supabase status *)",
-      "Bash(python3 -)"
+      "Bash(python3 -)",
+      "Bash(curl -sS -m 12 -o /dev/null -w 'wortschatz-leipzig: HTTP %{http_code}\\\\n' 'https://wortschatz.uni-leipzig.de/en/download/German')",
+      "Bash(curl -sS -m 12 -o /dev/null -w 'github raw:        HTTP %{http_code}\\\\n' 'https://raw.githubusercontent.com/hermitdave/FrequencyWords/master/content/2018/de/de_50k.txt')",
+      "Bash(curl -sS -m 12 -o /dev/null -w 'kaikki wiktionary: HTTP %{http_code}\\\\n' 'https://kaikki.org/dictionary/German/')",
+      "Bash(curl -sS -m 20 -o lz.html -w 'download page: HTTP %{http_code}\\\\n' 'https://wortschatz.uni-leipzig.de/en/download/German')",
+      "Read(//Users/shivamsharma/Projects/el-data/**)",
+      "Bash(npm i *)",
+      "Bash(node -p \"'sdk: '+require\\('./node_modules/@anthropic-ai/sdk/package.json'\\).version\")",
+      "Bash(node -p \"'zod: '+require\\('./node_modules/zod/package.json'\\).version\")",
+      "Bash(node --input-type=module -e ' *)"
     ],
     "deny": [
       "Bash(supabase db push:*)",
@@ -78,6 +87,9 @@
       "Bash(supabase functions deploy:*)",
       "Bash(supabase secrets:*)",
       "Bash(supabase projects:*)"
+    ],
+    "additionalDirectories": [
+      "/Users/shivamsharma/Projects/el-data/supabase/migrations"
     ]
   },
   "hooks": {
