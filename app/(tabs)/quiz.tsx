@@ -424,13 +424,13 @@ const styles = StyleSheet.create({
   pronunciation: { color: Colors.textMuted, fontSize: 14, fontStyle: 'italic', marginTop: 6 },
 
   contextBox: { marginTop: 14, backgroundColor: Colors.surface2, borderRadius: 12, padding: 12, width: '100%', borderLeftWidth: 3, borderLeftColor: Colors.purple },
-  contextLabel: { color: Colors.purple, fontSize: 10, fontWeight: '700', textTransform: 'uppercase', marginBottom: 4 },
+  contextLabel: { color: Colors.textMuted, fontSize: 10, fontWeight: '700', textTransform: 'uppercase', marginBottom: 4 },
   contextText: { color: Colors.white, fontSize: 14, fontStyle: 'italic' },
   contextTranslation: { color: Colors.textMuted, fontSize: 12, marginTop: 4 },
   letterBox: { marginTop: 12, backgroundColor: Colors.surface2, borderRadius: 10, padding: 10, width: '100%' },
   letterHint: { color: Colors.textMuted, fontSize: 14 },
-  imageHintBox: { marginTop: 12, backgroundColor: '#1e1a0d', borderRadius: 10, padding: 12, width: '100%', borderWidth: 1, borderColor: Colors.gold + '33' },
-  imageHintText: { color: '#e8d89a', fontSize: 13 },
+  imageHintBox: { marginTop: 12, backgroundColor: Colors.goldBg, borderRadius: 10, padding: 12, width: '100%', borderWidth: 1, borderColor: Colors.gold + '33' },
+  imageHintText: { color: Colors.gold, fontSize: 13 },
 
   hintsRow: { flexDirection: 'row', gap: 8, marginBottom: 18 },
   hintBtn: { flex: 1, backgroundColor: Colors.surface, borderRadius: 12, padding: 10, alignItems: 'center', gap: 3, borderWidth: 1, borderColor: Colors.border },

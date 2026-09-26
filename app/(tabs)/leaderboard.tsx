@@ -59,7 +59,7 @@ export default function LeaderboardScreen() {
               <Text style={styles.podiumMedal}>🥈</Text>
               <Text style={styles.podiumName}>{top3[1].name.split(' ')[0]}</Text>
               <Text style={styles.podiumXp}>{(top3[1].xp / 1000).toFixed(1)}k</Text>
-              <View style={[styles.podiumBar, { height: 60, backgroundColor: '#c0c0c0' }]} />
+              <View style={[styles.podiumBar, { height: 60, backgroundColor: Colors.medalSilver }]} />
             </View>
             {/* 1st */}
             <View style={styles.podiumPlayer}>
@@ -67,7 +67,7 @@ export default function LeaderboardScreen() {
               <Text style={styles.podiumMedal}>🥇</Text>
               <Text style={styles.podiumName}>{top3[0].name.split(' ')[0]}</Text>
               <Text style={styles.podiumXp}>{(top3[0].xp / 1000).toFixed(1)}k</Text>
-              <View style={[styles.podiumBar, { height: 80, backgroundColor: '#ffd700' }]} />
+              <View style={[styles.podiumBar, { height: 80, backgroundColor: Colors.medalGold }]} />
             </View>
             {/* 3rd */}
             <View style={[styles.podiumPlayer, { marginTop: 40 }]}>
@@ -75,7 +75,7 @@ export default function LeaderboardScreen() {
               <Text style={styles.podiumMedal}>🥉</Text>
               <Text style={styles.podiumName}>{top3[2].name.split(' ')[0]}</Text>
               <Text style={styles.podiumXp}>{(top3[2].xp / 1000).toFixed(1)}k</Text>
-              <View style={[styles.podiumBar, { height: 44, backgroundColor: '#cd7f32' }]} />
+              <View style={[styles.podiumBar, { height: 44, backgroundColor: Colors.medalBronze }]} />
             </View>
           </View>
         )}
@@ -125,9 +125,9 @@ function PlayerRow({ player }: { player: Player }) {
     <View style={[styles.row, player.isMe && styles.rowMe]}>
       <Text style={[
         styles.rank,
-        player.rank === 1 && { color: '#ffd700' },
-        player.rank === 2 && { color: '#c0c0c0' },
-        player.rank === 3 && { color: '#cd7f32' },
+        player.rank === 1 && { color: Colors.medalGold },
+        player.rank === 2 && { color: Colors.medalSilver },
+        player.rank === 3 && { color: Colors.medalBronze },
       ]}>
         {MEDAL[player.rank] ?? player.rank}
       </Text>

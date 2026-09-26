@@ -2,5 +2,11 @@
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "strict": true
-  }
+  },
+  "comment": "supabase/functions runs on Deno, not React Native — it has its own globals and npm: specifiers, so it is typechecked by the Supabase CLI at deploy time, not here.",
+  "exclude": [
+    "node_modules",
+    "dist",
+    "supabase/functions"
+  ]
 }

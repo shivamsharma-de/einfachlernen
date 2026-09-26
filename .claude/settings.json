@@ -1,0 +1,35 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node -e ' *)",
+      "Bash(node -p \"const p=require\\('./node_modules/posthog-react-native/package.json'\\); JSON.stringify\\({main:p.main,types:p.types,exports:p.exports},null,2\\)\")",
+      "Bash(curl -sS -m 25 -o gf.json -w 'HTTP %{http_code}\\\\n' \"https://fonts.googleapis.com/css2?family=Instrument+Serif&display=swap\")",
+      "Bash(md5 *.ttf)",
+      "Bash(file *.ttf)",
+      "Bash(mkdir -p assets/fonts)",
+      "Bash(mv /private/tmp/claude-501/-Users-shivamsharma-Projects-einfachlernen/1262e8e6-6cb8-4f6d-ba71-916ce7b507bc/assets/fonts/*.ttf assets/fonts/)",
+      "Bash(rm -rf /private/tmp/claude-501/-Users-shivamsharma-Projects-einfachlernen/1262e8e6-6cb8-4f6d-ba71-916ce7b507bc/assets)",
+      "Bash(node -p \"require\\('./node_modules/react-native-svg/package.json'\\).version\")",
+      "Bash(node -p \"'in package.json: '+require\\('./package.json'\\).dependencies['react-native-svg']\")",
+      "Bash(sed -i '' \"s/backgroundColor: '#c0c0c0'/backgroundColor: Colors.medalSilver/; s/backgroundColor: '#ffd700'/backgroundColor: Colors.medalGold/; s/backgroundColor: '#cd7f32'/backgroundColor: Colors.medalBronze/; s/{ color: '#ffd700' }/{ color: Colors.medalGold }/; s/{ color: '#c0c0c0' }/{ color: Colors.medalSilver }/; s/{ color: '#cd7f32' }/{ color: Colors.medalBronze }/\" 'app/\\(tabs\\)/leaderboard.tsx')",
+      "Bash(sed -i '' \"s/backgroundColor: '#1e1a0d'/backgroundColor: Colors.goldBg/; s/color: '#e8d89a'/color: Colors.gold/\" 'app/\\(tabs\\)/quiz.tsx')",
+      "Bash(sed -i '' \"s/backgroundColor: '#1a0d2e'/backgroundColor: Colors.purpleBg/; s/color: '#c084fc'/color: Colors.purple/; s/backgroundColor: '#1e1a0d'/backgroundColor: Colors.goldBg/; s/color: '#e8d89a'/color: Colors.gold/\" 'app/\\(tabs\\)/phrases.tsx')",
+      "Bash(sed -i '' \"s/backgroundColor: 'rgba\\(245,200,66,0.12\\)'/backgroundColor: Colors.purpleBg/; s/tabBarActiveTintColor: Colors.gold/tabBarActiveTintColor: Colors.purple/\" 'app/\\(tabs\\)/_layout.tsx')",
+      "Bash(grep -rnE \"'#[0-9a-fA-F]{3,8}'|rgba\\\\\\(\" --include='*.ts' --include='*.tsx' app components hooks lib context types)",
+      "Bash(sed -i '' \"s/backgroundColor: 'rgba\\(13,12,10,0.25\\)', overflow: 'hidden',/backgroundColor: Colors.onPurpleTrack, overflow: 'hidden',/\" 'app/\\(tabs\\)/index.tsx')",
+      "Bash(sed -i '' \"s/tabTextActive: { color: Colors.white }/tabTextActive: { color: Colors.black }/\" 'app/\\(tabs\\)/phrases.tsx')",
+      "Bash(curl -s -o /dev/null http://localhost:8084/)",
+      "Bash(xargs -r kill -9)",
+      "Skill(claude-api)",
+      "Skill(claude-api:*)",
+      "Bash(node -p \"'expo-camera: '+require\\('./package.json'\\).dependencies['expo-camera']\")",
+      "Bash(brew update *)",
+      "Bash(tail -20 /private/tmp/claude-501/-Users-shivamsharma-Projects-einfachlernen/0f341538-f17c-49dd-9214-142a6e99de8a/tasks/bhy1ofw4z.output; echo \"=== check ===\"; ls -d /Applications/OrbStack.app 2>&1; which docker 2>&1)",
+      "Read(//Applications/OrbStack.app/**)",
+      "Bash(open -a OrbStack)",
+      "Bash(docker info *)",
+      "Bash(docker --version)",
+      "Bash(echo \"docker ready: $\\(docker --version\\)\")"
+    ]
+  }
+}

@@ -40,3 +40,11 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# supabase CLI local state (never the remote project)
+supabase/.temp/
+supabase/.branches/
+supabase/functions/.env.local
+
+# local `npm run bundle` verification output
+.expo-bundle-check/

@@ -5,11 +5,15 @@ export const posthog = new PostHog('phc_placeholder_replace_with_real_key', {
   disabled: __DEV__,
 });
 
-export function identify(userId: string, props?: Record<string, unknown>) {
+// PostHog only accepts JSON-serializable property values; derive the type from
+// the client so it stays correct across SDK bumps.
+type EventProps = NonNullable<Parameters<PostHog['capture']>[1]>;
+
+export function identify(userId: string, props?: EventProps) {
   posthog.identify(userId, props);
 }
 
-export function track(event: string, props?: Record<string, unknown>) {
+export function track(event: string, props?: EventProps) {
   posthog.capture(event, props);
 }
 

@@ -40,7 +40,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(session?.user ?? null);
       if (session?.user) {
         fetchProfile(session.user.id);
-        identify(session.user.id, { email: session.user.email });
+        identify(session.user.id, session.user.email ? { email: session.user.email } : {});
       } else {
         setProfile(null);
         reset();

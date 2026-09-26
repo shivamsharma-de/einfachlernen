@@ -1,286 +1,312 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity,
-  StyleSheet, SafeAreaView, Dimensions,
+  View, Text, ScrollView, StyleSheet, SafeAreaView, TouchableOpacity, ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '../../constants/Colors';
-import { CEFRLevel } from '../../types';
+import { Colors, Type, Space, Radius, THEMEN } from '../../constants/Colors';
+import { Eyebrow, ProgressRing, StatPair, SectionShelf, WordRow } from '../../components';
+import { fetchWordsByLevel, fetchWordCountsByLevel } from '../../lib/db';
+import { useAuth } from '../../context/auth';
+import { levelOf } from '../../lib/profile';
+import { fetchDueWordIds } from '../../lib/deck';
+import { fetchToday, fetchStreak, DAILY_MINUTES_GOAL } from '../../lib/activity';
+import { stufe } from '../../lib/progress';
+import { Word } from '../../types';
 
-const { width } = Dimensions.get('window');
+function greeting(hour: number): { de: string; en: string } {
+  if (hour < 11) return { de: 'Guten Morgen', en: 'Good morning' };
+  if (hour < 18) return { de: 'Guten Tag', en: 'Good afternoon' };
+  return { de: 'Guten Abend', en: 'Good evening' };
+}
 
-const LEVELS: { id: CEFRLevel; label: string; name: string; color: string; total: number; done: number; locked: boolean }[] = [
-  { id: 'A1', label: 'A1', name: 'Beginner',    color: Colors.levelA1, total: 120, done: 120, locked: false },
-  { id: 'A2', label: 'A2', name: 'Elementary',  color: Colors.levelA2, total: 200, done: 147, locked: false },
-  { id: 'B1', label: 'B1', name: 'Intermediate',color: Colors.levelB1, total: 300, done: 0,   locked: true },
-  { id: 'B2', label: 'B2', name: 'Upper-Int.',  color: Colors.levelB2, total: 350, done: 0,   locked: true },
-  { id: 'C1', label: 'C1', name: 'Advanced',    color: Colors.levelC1, total: 400, done: 0,   locked: true },
-  { id: 'C2', label: 'C2', name: 'Mastery',     color: Colors.levelC2, total: 500, done: 0,   locked: true },
-];
+function formatDate(d: Date): string {
+  return d.toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' });
+}
 
-const ALL_CHIPS: CEFRLevel[] = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
+/** Look up the English subtitle for a category when it matches a canonical
+ *  Thema. Seed categories are not normalised yet (§7), so this misses often —
+ *  by design, rather than guessing a translation. */
+function themaEnglish(category: string): string | null {
+  const match = THEMEN.find(t => t.de.toLowerCase() === category.toLowerCase());
+  return match ? match.en : null;
+}
 
 export default function HomeScreen() {
   const router = useRouter();
-  const [selectedChips, setSelectedChips] = useState<CEFRLevel[]>(['A1', 'A2']);
+  const { user, profile } = useAuth();
+  // Level is read-only here — it is chosen in Profil and nowhere else (PRD v2 D1).
+  const level = levelOf(profile);
 
-  const toggleChip = (level: CEFRLevel) => {
-    const unlocked = LEVELS.find(l => l.id === level);
-    if (unlocked?.locked) return;
-    setSelectedChips(prev =>
-      prev.includes(level) ? prev.filter(l => l !== level) : [...prev, level],
-    );
-  };
+  const [words, setWords] = useState<Word[]>([]);
+  const [counts, setCounts] = useState<Record<string, number>>({});
+  const [dueIds, setDueIds] = useState<string[]>([]);
+  const [minutes, setMinutes] = useState(0);
+  const [streak, setStreak] = useState(0);
+  const [loading, setLoading] = useState(true);
 
-  const startQuiz = (levels: CEFRLevel[]) => {
-    const param = levels.join(',');
-    router.push({ pathname: '/(tabs)/quiz', params: { levels: param } });
-  };
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const allCounts = await fetchWordCountsByLevel();
+      if (cancelled) return;
+      setCounts(allCounts);
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    void (async () => {
+      const [ids, today, streakValue] = await Promise.all([
+        fetchDueWordIds(user.id), fetchToday(user.id), fetchStreak(),
+      ]);
+      if (cancelled) return;
+      setDueIds(ids);
+      setMinutes(today?.minutes ?? 0);
+      setStreak(streakValue);
+    })();
+    return () => { cancelled = true; };
+  }, [user]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    void (async () => {
+      const rows = await fetchWordsByLevel([level]);
+      if (cancelled) return;
+      setWords(rows);
+      setLoading(false);
+    })();
+    return () => { cancelled = true; };
+  }, [level]);
+
+  const now = new Date();
+  const hello = greeting(now.getHours());
+
+  // Themen shelf: real categories present at this level, largest first.
+  const themen = useMemo(() => {
+    const byCategory = new Map<string, number>();
+    for (const w of words) byCategory.set(w.category, (byCategory.get(w.category) ?? 0) + 1);
+    return [...byCategory.entries()]
+      .map(([category, total]) => ({ category, total }))
+      .sort((a, b) => b.total - a.total);
+  }, [words]);
+
+  // Continue card targets the largest Thema at this level. `done` counts the
+  // words in it the learner has actually started a card for.
+  const current = themen[0] ?? null;
+
+  const due = useMemo(() => {
+    const ids = new Set(dueIds);
+    return words.filter(w => ids.has(w.id));
+  }, [dueIds, words]);
+
+  const currentDone = useMemo(() => {
+    if (!current) return 0;
+    const started = new Set(dueIds);
+    return words.filter(w => w.category === current.category && started.has(w.id)).length;
+  }, [current, words, dueIds]);
+
+  // Due words all lead into the deck — that is where they get reviewed.
+  const openWord = useCallback(() => router.push('/(tabs)/deck'), [router]);
 
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
 
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.logo}>Einfach<Text style={{ color: Colors.gold }}>Lernen</Text></Text>
-          <View style={styles.headerRight}>
-            <View style={styles.streakBadge}>
-              <Text style={styles.streakText}>🔥 14</Text>
+        {/* 1 — Greeting */}
+        <View style={styles.gutter}>
+          <View style={styles.greetingRow}>
+            <View style={styles.greetingText}>
+              <Text style={styles.date}>{formatDate(now)}</Text>
+              <Text style={styles.hello}>
+                {hello.de}<Text style={styles.period}>.</Text>
+              </Text>
+              <Text style={styles.helloEn}>{hello.en}</Text>
             </View>
-            <Text style={styles.xpText}>⚡ 2,340 XP</Text>
-          </View>
-        </View>
-
-        {/* Profile Card */}
-        <View style={styles.profileCard}>
-          <View style={styles.avatar}><Text style={styles.avatarEmoji}>🧑‍🎓</Text></View>
-          <View style={styles.profileInfo}>
-            <Text style={styles.profileName}>Alex M.</Text>
-            <Text style={styles.profileLevel}>A2 · Elementary</Text>
-            <View style={styles.xpBarBg}>
-              <View style={[styles.xpBarFill, { width: '73%' }]} />
+            <View style={styles.levelCircle}>
+              <Text style={styles.levelCircleText}>{level}</Text>
             </View>
-            <Text style={styles.xpBarLabel}>2,340 / 3,000 XP to B1</Text>
           </View>
         </View>
 
-        {/* Quick Play */}
-        <TouchableOpacity style={styles.quickPlay} onPress={() => startQuiz(['A2'])}>
-          <Text style={styles.quickPlayIcon}>⚡</Text>
-          <View style={styles.quickPlayText}>
-            <Text style={styles.quickPlayTitle}>Continue A2 — Unit 5</Text>
-            <Text style={styles.quickPlaySub}>Shopping & directions vocab</Text>
+        {/* 2 — Daily goal */}
+        <View style={styles.gutter}>
+          <View style={styles.card}>
+            <View style={styles.goalTop}>
+              <ProgressRing
+                pct={minutes / DAILY_MINUTES_GOAL}
+                size={64}
+                color={Colors.gold}
+                label={`${minutes}/${DAILY_MINUTES_GOAL}`}
+              />
+              <View style={styles.goalCopy}>
+                <Eyebrow>Tagesziel</Eyebrow>
+                <Text style={styles.goalMinutes}>
+                  {minutes} von {DAILY_MINUTES_GOAL} Minuten
+                </Text>
+                <Text style={styles.goalDue}>
+                  {due.length === 0 ? 'Keine Karten fällig' : `${due.length} Karten fällig`}
+                </Text>
+              </View>
+            </View>
+            <View style={styles.statRow}>
+              <StatPair value={streak} label="Tage Serie" color={Colors.gold} />
+              <StatPair value={profile?.xp ?? 0} label={`XP · Stufe ${stufe(profile?.xp ?? 0)}`} />
+            </View>
           </View>
-          <Ionicons name="chevron-forward" size={20} color={Colors.green} />
-        </TouchableOpacity>
-
-        {/* Section: Levels */}
-        <Text style={styles.sectionTitle}>Choose a Level</Text>
-        <View style={styles.levelsGrid}>
-          {LEVELS.map(level => {
-            const pct = level.total > 0 ? (level.done / level.total) * 100 : 0;
-            return (
-              <TouchableOpacity
-                key={level.id}
-                style={[
-                  styles.levelCard,
-                  level.locked && styles.levelCardLocked,
-                  !level.locked && { borderColor: level.color + '44' },
-                ]}
-                onPress={() => !level.locked && startQuiz([level.id])}
-                activeOpacity={level.locked ? 1 : 0.7}
-              >
-                <Text style={[styles.levelBadge, { color: level.color }]}>{level.label}</Text>
-                <Text style={styles.levelName}>{level.name}</Text>
-                {level.locked ? (
-                  <Text style={styles.levelProgress}>🔒</Text>
-                ) : level.done === level.total ? (
-                  <Text style={[styles.levelProgress, { color: Colors.green }]}>✓ Done</Text>
-                ) : (
-                  <>
-                    <View style={styles.miniBarBg}>
-                      <View style={[styles.miniBarFill, { width: `${pct}%`, backgroundColor: level.color }]} />
-                    </View>
-                    <Text style={styles.levelProgress}>{level.done}/{level.total}</Text>
-                  </>
-                )}
-              </TouchableOpacity>
-            );
-          })}
         </View>
 
-        {/* Mix & Match */}
-        <View style={styles.comboCard}>
-          <Text style={styles.comboTitle}>🎯 Mix & Match Levels</Text>
-          <Text style={styles.comboDesc}>Combine multiple CEFR levels into one session.</Text>
-          <View style={styles.chipsRow}>
-            {ALL_CHIPS.map(chip => {
-              const locked = LEVELS.find(l => l.id === chip)?.locked;
-              const selected = selectedChips.includes(chip);
-              return (
-                <TouchableOpacity
-                  key={chip}
+        {/* 4 — Continue. The only violet-filled block on the screen (§6.1). */}
+        {current && (
+          <View style={styles.gutter}>
+            <TouchableOpacity
+              style={styles.continueCard}
+              onPress={() => router.push('/(tabs)/deck')}
+              accessibilityRole="button"
+              accessibilityLabel={`Weiterlernen: ${current.category}`}
+              activeOpacity={0.9}
+            >
+              <Text style={styles.continueEyebrow}>Weiterlernen</Text>
+              <Text style={styles.continueTitle}>{current.category}</Text>
+              {themaEnglish(current.category) && (
+                <Text style={styles.continueSub}>{themaEnglish(current.category)}</Text>
+              )}
+              <Text style={styles.continueCount}>
+                {currentDone} von {current.total} Wörtern
+              </Text>
+              <View style={styles.continueBarBg}>
+                <View
                   style={[
-                    styles.chip,
-                    selected && styles.chipSelected,
-                    locked && styles.chipLocked,
+                    styles.continueBarFill,
+                    { width: `${current.total > 0 ? (currentDone / current.total) * 100 : 0}%` },
                   ]}
-                  onPress={() => toggleChip(chip)}
-                  activeOpacity={locked ? 1 : 0.7}
-                >
-                  <Text style={[styles.chipText, selected && styles.chipTextSelected, locked && styles.chipTextLocked]}>
-                    {chip}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
+                />
+              </View>
+            </TouchableOpacity>
           </View>
-          <TouchableOpacity
-            style={[styles.comboBtn, selectedChips.length === 0 && styles.comboBtnDisabled]}
-            onPress={() => selectedChips.length > 0 && startQuiz(selectedChips)}
-          >
-            <Text style={styles.comboBtnText}>
-              Start Mixed Session — {selectedChips.join(' + ')} →
+        )}
+
+        {/* 5 — Themen shelf */}
+        {loading ? (
+          <ActivityIndicator color={Colors.textMuted} style={styles.loader} />
+        ) : themen.length > 0 && (
+          <SectionShelf title={`Themen · ${level}`}>
+            {themen.map(t => (
+              <TouchableOpacity
+                key={t.category}
+                style={styles.tile}
+                onPress={() => router.push('/(tabs)/deck')}
+                accessibilityRole="button"
+                accessibilityLabel={t.category}
+                activeOpacity={0.85}
+              >
+                <View style={styles.tileArt}>
+                  {[0, 1, 2, 3, 4, 5].map(i => (
+                    <View key={i} style={[styles.stripe, { left: i * 26 - 20 }]} />
+                  ))}
+                </View>
+                <Text style={styles.tileTitle} numberOfLines={2}>{t.category}</Text>
+                <Text style={styles.tileCount}>{t.total} Wörter</Text>
+              </TouchableOpacity>
+            ))}
+          </SectionShelf>
+        )}
+
+        {/* 6 — Fällig heute */}
+        <View style={styles.gutter}>
+          <Eyebrow right={<Text style={styles.dueTotal}>{counts[level] ?? 0} gesamt</Text>}>
+            Fällig heute
+          </Eyebrow>
+          {due.length === 0 ? (
+            <Text style={styles.empty}>
+              Nichts fällig. Karten erscheinen hier, sobald du sie im Deck bewertet hast.
             </Text>
-          </TouchableOpacity>
+          ) : (
+            due.map(word => <WordRow key={word.id} word={word} onPress={openWord} />)
+          )}
         </View>
 
-        {/* Daily Goals */}
-        <Text style={styles.sectionTitle}>Today's Goals</Text>
-        <View style={styles.goalsRow}>
-          <GoalCard icon="📚" label="Words" value="23" total="30" />
-          <GoalCard icon="🎯" label="Accuracy" value="87" total="%" suffix />
-          <GoalCard icon="⏱️" label="Time" value="18" total="min" suffix />
-        </View>
-
-        <View style={{ height: 12 }} />
       </ScrollView>
     </SafeAreaView>
-  );
-}
-
-function GoalCard({ icon, label, value, total, suffix }: {
-  icon: string; label: string; value: string; total: string; suffix?: boolean;
-}) {
-  return (
-    <View style={styles.goalCard}>
-      <Text style={styles.goalIcon}>{icon}</Text>
-      <Text style={styles.goalLabel}>{label}</Text>
-      <Text style={styles.goalValue}>
-        {value}
-        <Text style={styles.goalTotal}>{suffix ? total : `/${total}`}</Text>
-      </Text>
-    </View>
   );
 }
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.bg },
   scroll: { flex: 1 },
-  content: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 40 },
+  content: { paddingTop: Space.sm, paddingBottom: 40, gap: Space.xxl },
+  gutter: { paddingHorizontal: Space.gutter },
+  chipRow: { paddingLeft: Space.gutter },
+  loader: { marginVertical: Space.xl },
 
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 },
-  logo: { fontSize: 22, fontWeight: '800', color: Colors.white, letterSpacing: -0.5 },
-  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  streakBadge: { backgroundColor: Colors.surface2, paddingHorizontal: 12, paddingVertical: 5, borderRadius: 20 },
-  streakText: { color: Colors.white, fontSize: 13, fontWeight: '700' },
-  xpText: { color: Colors.gold, fontSize: 13, fontWeight: '700' },
-
-  profileCard: {
-    backgroundColor: Colors.surface,
-    borderRadius: 16, padding: 18,
-    flexDirection: 'row', alignItems: 'center', gap: 14,
-    marginBottom: 16,
+  greetingRow: { flexDirection: 'row', alignItems: 'center', gap: Space.lg },
+  greetingText: { flex: 1, gap: 2 },
+  date: { ...Type.eyebrow, color: Colors.textMuted },
+  hello: { ...Type.title, color: Colors.white },
+  period: { color: Colors.purple },
+  helloEn: { ...Type.caption, color: Colors.textMuted },
+  levelCircle: {
+    width: 50, height: 50, borderRadius: 25,
     borderWidth: 1, borderColor: Colors.border,
-  },
-  avatar: {
-    width: 56, height: 56, borderRadius: 28,
-    backgroundColor: Colors.goldBg,
     alignItems: 'center', justifyContent: 'center',
-    borderWidth: 2, borderColor: Colors.gold + '44',
   },
-  avatarEmoji: { fontSize: 26 },
-  profileInfo: { flex: 1 },
-  profileName: { color: Colors.white, fontWeight: '700', fontSize: 16 },
-  profileLevel: { color: Colors.gold, fontSize: 12, fontWeight: '600', marginTop: 2 },
-  xpBarBg: { height: 5, backgroundColor: Colors.surface3, borderRadius: 3, marginTop: 8, overflow: 'hidden' },
-  xpBarFill: { height: '100%', backgroundColor: Colors.gold, borderRadius: 3 },
-  xpBarLabel: { color: Colors.textMuted, fontSize: 11, marginTop: 4 },
+  levelCircleText: { ...Type.meta, color: Colors.white },
 
-  quickPlay: {
+  card: {
     backgroundColor: Colors.surface,
-    borderWidth: 1, borderColor: Colors.green + '33',
-    borderRadius: 16, padding: 16,
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    marginBottom: 20,
+    borderRadius: Radius.card,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    padding: 18,
+    gap: Space.lg,
   },
-  quickPlayIcon: { fontSize: 28 },
-  quickPlayText: { flex: 1 },
-  quickPlayTitle: { color: Colors.white, fontWeight: '700', fontSize: 15 },
-  quickPlaySub: { color: Colors.textMuted, fontSize: 13, marginTop: 2 },
+  goalTop: { flexDirection: 'row', alignItems: 'center', gap: Space.lg },
+  goalCopy: { flex: 1 },
+  goalMinutes: { ...Type.bodyL, color: Colors.white },
+  goalDue: { ...Type.caption, color: Colors.textMuted, marginTop: 2 },
+  statRow: {
+    flexDirection: 'row', gap: Space.xxl,
+    borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: Colors.border,
+    paddingTop: Space.lg,
+  },
 
-  sectionTitle: {
-    color: Colors.textMuted, fontSize: 11, fontWeight: '700',
-    textTransform: 'uppercase', letterSpacing: 1.2,
-    marginBottom: 12, marginTop: 4,
+  continueCard: {
+    backgroundColor: Colors.purple,
+    borderRadius: Radius.card,
+    padding: 18,
+    gap: Space.xs,
   },
+  continueEyebrow: { ...Type.eyebrow, color: Colors.black },
+  continueTitle: { ...Type.title, fontSize: 24, lineHeight: 28, color: Colors.black },
+  continueSub: { ...Type.caption, color: Colors.black },
+  continueCount: { ...Type.meta, color: Colors.black, marginTop: Space.sm },
+  continueBarBg: {
+    height: 4, borderRadius: 2, marginTop: Space.xs,
+    backgroundColor: Colors.onPurpleTrack, overflow: 'hidden',
+  },
+  continueBarFill: { height: '100%', borderRadius: 2, backgroundColor: Colors.black },
 
-  levelsGrid: {
-    flexDirection: 'row', flexWrap: 'wrap',
-    gap: 10, marginBottom: 20,
+  tile: {
+    width: 150,
+    gap: Space.sm,
   },
-  levelCard: {
-    width: (width - 60) / 3,
-    backgroundColor: Colors.surface,
-    borderRadius: 14, padding: 14,
-    alignItems: 'center',
-    borderWidth: 1.5, borderColor: Colors.border,
-    gap: 4,
-  },
-  levelCardLocked: { opacity: 0.35 },
-  levelBadge: { fontSize: 22, fontWeight: '900', letterSpacing: -0.5 },
-  levelName: { color: Colors.textMuted, fontSize: 10, textAlign: 'center' },
-  levelProgress: { color: Colors.textMuted, fontSize: 10, marginTop: 2 },
-  miniBarBg: { width: '90%', height: 3, backgroundColor: Colors.surface3, borderRadius: 2, overflow: 'hidden', marginTop: 4 },
-  miniBarFill: { height: '100%', borderRadius: 2 },
-
-  comboCard: {
-    backgroundColor: Colors.surface,
-    borderRadius: 16, padding: 18,
-    borderWidth: 1, borderColor: Colors.purple + '44',
-    marginBottom: 20,
-  },
-  comboTitle: { color: Colors.white, fontWeight: '700', fontSize: 16, marginBottom: 4 },
-  comboDesc: { color: Colors.textMuted, fontSize: 13, marginBottom: 14 },
-  chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 14 },
-  chip: {
-    paddingHorizontal: 16, paddingVertical: 8,
-    borderRadius: 20, borderWidth: 1.5, borderColor: Colors.border,
+  tileArt: {
+    height: 88,
+    borderRadius: Radius.tile,
     backgroundColor: Colors.surface2,
+    overflow: 'hidden',
   },
-  chipSelected: { borderColor: Colors.purple, backgroundColor: Colors.purpleBg },
-  chipLocked: { opacity: 0.35 },
-  chipText: { color: Colors.textMuted, fontSize: 13, fontWeight: '700' },
-  chipTextSelected: { color: '#c084fc' },
-  chipTextLocked: { color: Colors.textDim },
-  comboBtn: {
-    backgroundColor: Colors.purple, borderRadius: 12,
-    paddingVertical: 13, alignItems: 'center',
+  stripe: {
+    position: 'absolute',
+    top: -20, bottom: -20, width: 10,
+    backgroundColor: Colors.surface3,
+    transform: [{ rotate: '20deg' }],
   },
-  comboBtnDisabled: { opacity: 0.4 },
-  comboBtnText: { color: Colors.white, fontWeight: '700', fontSize: 14 },
+  tileTitle: { ...Type.bodyL, color: Colors.white },
+  tileCount: { ...Type.meta, color: Colors.textMuted },
 
-  goalsRow: { flexDirection: 'row', gap: 10 },
-  goalCard: {
-    flex: 1, backgroundColor: Colors.surface,
-    borderRadius: 14, padding: 14,
-    borderWidth: 1, borderColor: Colors.border,
-    gap: 4,
-  },
-  goalIcon: { fontSize: 20 },
-  goalLabel: { color: Colors.textMuted, fontSize: 11 },
-  goalValue: { color: Colors.white, fontSize: 20, fontWeight: '800' },
-  goalTotal: { color: Colors.textMuted, fontSize: 12, fontWeight: '400' },
+  dueTotal: { ...Type.eyebrow, color: Colors.textMuted },
+  empty: { ...Type.body, color: Colors.textMuted, paddingVertical: Space.sm },
 });

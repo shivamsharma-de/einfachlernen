@@ -1,11 +1,11 @@
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '../../constants/Colors';
-import { View, StyleSheet, Platform } from 'react-native';
+import { Colors, Type } from '../../constants/Colors';
+import { View, StyleSheet, Platform, type ColorValue } from 'react-native';
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
 
-function TabIcon({ name, color, focused }: { name: IoniconsName; color: string; focused: boolean }) {
+function TabIcon({ name, color, focused }: { name: IoniconsName; color: ColorValue; focused: boolean }) {
   return (
     <View style={[styles.iconWrap, focused && styles.iconWrapActive]}>
       <Ionicons name={name} size={22} color={color} />
@@ -13,13 +13,16 @@ function TabIcon({ name, color, focused }: { name: IoniconsName; color: string; 
   );
 }
 
+/** Five tabs — design-spec.md §6.6 is explicit that six is too many.
+ *  Phrases becomes "Wörter"; the quiz and the leaderboard stay as routes but
+ *  leave the bar: quiz is entered from Home, ranks from Profil. */
 export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
         tabBarStyle: styles.tabBar,
-        tabBarActiveTintColor: Colors.gold,
+        tabBarActiveTintColor: Colors.purple,
         tabBarInactiveTintColor: Colors.textMuted,
         tabBarLabelStyle: styles.tabLabel,
         tabBarShowLabel: true,
@@ -28,39 +31,52 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Home',
+          title: 'Heute',
           tabBarIcon: ({ color, focused }) => (
-            <TabIcon name={focused ? 'home' : 'home-outline'} color={color} focused={focused} />
+            <TabIcon name={focused ? 'today' : 'today-outline'} color={color} focused={focused} />
           ),
         }}
       />
       <Tabs.Screen
-        name="quiz"
+        name="deck"
         options={{
-          title: 'Play',
+          title: 'Deck',
           tabBarIcon: ({ color, focused }) => (
-            <TabIcon name={focused ? 'flash' : 'flash-outline'} color={color} focused={focused} />
+            <TabIcon name={focused ? 'layers' : 'layers-outline'} color={color} focused={focused} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="scan"
+        options={{
+          title: 'Scan',
+          tabBarIcon: ({ color, focused }) => (
+            <TabIcon name={focused ? 'scan' : 'scan-outline'} color={color} focused={focused} />
           ),
         }}
       />
       <Tabs.Screen
         name="phrases"
         options={{
-          title: 'Phrases',
+          title: 'Wörter',
           tabBarIcon: ({ color, focused }) => (
-            <TabIcon name={focused ? 'chatbubbles' : 'chatbubbles-outline'} color={color} focused={focused} />
+            <TabIcon name={focused ? 'book' : 'book-outline'} color={color} focused={focused} />
           ),
         }}
       />
       <Tabs.Screen
-        name="leaderboard"
+        name="profile"
         options={{
-          title: 'Ranks',
+          title: 'Profil',
           tabBarIcon: ({ color, focused }) => (
-            <TabIcon name={focused ? 'trophy' : 'trophy-outline'} color={color} focused={focused} />
+            <TabIcon name={focused ? 'person' : 'person-outline'} color={color} focused={focused} />
           ),
         }}
       />
+
+      {/* Routable, but not on the bar. */}
+      <Tabs.Screen name="quiz" options={{ href: null }} />
+      <Tabs.Screen name="leaderboard" options={{ href: null }} />
     </Tabs>
   );
 }
@@ -74,11 +90,7 @@ const styles = StyleSheet.create({
     paddingBottom: Platform.OS === 'ios' ? 24 : 8,
     paddingTop: 8,
   },
-  tabLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    marginTop: 2,
-  },
+  tabLabel: { ...Type.eyebrow, marginTop: 2 },
   iconWrap: {
     width: 36,
     height: 28,
@@ -87,6 +99,6 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   iconWrapActive: {
-    backgroundColor: 'rgba(245,200,66,0.12)',
+    backgroundColor: Colors.purpleBg,
   },
 });
