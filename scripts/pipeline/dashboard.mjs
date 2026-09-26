@@ -127,7 +127,9 @@ function pipelineSection() {
     const live = status === 'running' && rows != null ? rows : (s.out ?? rows);
     let detail = '';
     if (live != null) detail += `${n(live)} rows`;
-    if (status === 'running' && rows != null && s.in) {
+    // `s.in` is also from the previous run, so it is only a usable denominator
+    // when it is actually ahead of what is on disk.
+    if (status === 'running' && rows != null && s.in > rows) {
       detail += c.d(` of ${n(s.in)}  (${((100 * rows) / s.in).toFixed(0)}%)`);
     }
     if (s.rejected) detail += c.y(` · ${n(s.rejected)} rejected`);
