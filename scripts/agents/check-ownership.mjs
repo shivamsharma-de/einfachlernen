@@ -21,6 +21,28 @@ if (!AGENTS.includes(agent)) {
 }
 
 const git = (...args) => execFileSync('git', args, { encoding: 'utf8' }).trim();
+const tryGit = (...args) => {
+  try {
+    return execFileSync('git', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * Nothing is ever pushed in this workflow — the lead merges into local `main`
+ * — so `origin/main` goes stale immediately and would make every bootstrap
+ * commit look like the agent's work. Take whichever of the two is further along.
+ */
+function baseCommit() {
+  const bases = ['main', 'origin/main']
+    .map((ref) => tryGit('merge-base', ref, 'HEAD'))
+    .filter(Boolean);
+  if (bases.length === 0) throw new Error('no main or origin/main to compare against');
+  return bases.reduce((a, b) =>
+    tryGit('merge-base', '--is-ancestor', a, b) !== null ? b : a,
+  );
+}
 
 let changed;
 let scope;
@@ -28,12 +50,7 @@ if (staged) {
   changed = git('diff', '--cached', '--name-only');
   scope = 'staged changes';
 } else {
-  let base;
-  try {
-    base = git('merge-base', 'origin/main', 'HEAD');
-  } catch {
-    base = git('merge-base', 'main', 'HEAD');
-  }
+  const base = baseCommit();
   changed = git('diff', '--name-only', `${base}...HEAD`);
   scope = `commits since ${base.slice(0, 7)}`;
 }

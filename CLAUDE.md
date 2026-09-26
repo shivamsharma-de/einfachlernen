@@ -42,7 +42,8 @@ Migrations `001`–`005` are already applied to the remote project — nobody ed
   Never in client code, never in an `EXPO_PUBLIC_` variable.
 - Model IDs come from `ANTHROPIC_MODEL_TEXT` / `ANTHROPIC_MODEL_VISION` — never hard-coded.
 - Small commits, prefixed `[data]` / `[backend]` / `[design]` / `[frontend]`.
-  `git fetch && git rebase origin/main` at the start of each milestone.
+  `git rebase main` at the start of each milestone — local `main`, which all worktrees share.
+  Nothing is pushed during the run, so `origin/main` stays stale; do not rebase onto it.
 - Update `docs/agents/status/<agent>.md` at every milestone.
 - If you are blocked, keep working against the stub or the contract and write down what you assumed.
 

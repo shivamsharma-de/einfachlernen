@@ -86,8 +86,9 @@ git merge --no-ff agent/data
 npm run typecheck && npm test && npm run bundle
 ```
 
-Then tell the other three to `git fetch && git rebase origin/main`. Because the paths are disjoint,
-conflicts should only ever appear in lead-owned files.
+Then tell the other three to `git rebase main` — local `main`, which every worktree shares, since
+nothing is pushed during the run. Because the paths are disjoint, conflicts should only ever appear in
+lead-owned files.
 
 ---
 

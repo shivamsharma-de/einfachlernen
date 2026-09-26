@@ -122,7 +122,8 @@ All four start at once. No agent waits on another to *start*; the dependencies b
    remote project. Local only: `supabase start`, `supabase db reset`, `supabase functions serve`.
 5. Never add dependencies. If one is missing, request it in the status file.
 6. Small commits on your branch, message prefix `[data]`, `[backend]`, `[design]`, `[frontend]`.
-   `git fetch && git rebase origin/main` at the start of each milestone.
+   `git rebase main` at the start of each milestone — **local `main`, not `origin/main`**. Nothing is
+   pushed during the run; the lead merges into the local `main` that all worktrees share.
 7. Update your status file at every milestone.
 8. Before declaring a milestone done: `npm run typecheck` clean; your agent-specific checks (in brief) pass.
 9. If blocked, keep working against the stub/contract and write down what you assumed.
