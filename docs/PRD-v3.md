@@ -99,6 +99,23 @@ v3 adds the session builder, shuffle, and the full card content.
 | F3.8 | Empty states: nothing due → show next due time + "Neue Wörter lernen" (introduces next batch beyond the daily cap). | P0 |
 | F3.9 | Browse my deck (list, filter by level/origin, remove a card). | P2 |
 
+**Decision D13 — the card runs English → German, and grading is a swipe.** The front shows only the
+English meaning and the level badge; flipping reveals the German headword with its article, grammar line
+and examples. This is production practice rather than recognition: the learner has to *produce* the
+German, article included, which is the direction that builds speaking ability and the one where a wrong
+`der/die/das` actually gets caught. It supersedes design-spec §6.4, which assumed a German-first front.
+
+Grading is a horizontal swipe on the card, with the existing `GradeRow` buttons kept as an accessible
+equivalent (a swipe is not operable by every user, design-spec §8):
+
+| Gesture | Grade | Meaning |
+|---|---|---|
+| Swipe **right** | `2` (Gut) | learned — schedule it forward |
+| Swipe **left** | `0` (Nochmal) | show it again this session (F3.3: re-insert 3–5 cards later) |
+
+Swipe is implemented with React Native's built-in `PanResponder` + `Animated`. `react-native-reanimated`
+and `react-native-gesture-handler` are **not** installed and must not be added.
+
 **Decision D9 — Shuffle is Fisher–Yates with light constraints, not pure random.** Pure random can put 8 new
 words in a row, which is the most discouraging session possible. Seeded so a resumed session reproduces the
 same order.
