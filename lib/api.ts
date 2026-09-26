@@ -139,11 +139,12 @@ export async function buildSession(
       stats: { due: due.length, new: fresh.length, reviewed: 0 },
     };
 
-    if (queue.length === 0) {
-      return { ok: false, error: 'Heute ist nichts fällig. Gut gemacht!' };
-    }
-
-    await persist(session, userId);
+    // An empty queue is a successful build, not a failure — the frontend
+    // request (docs/agents/status/frontend.md #1) was right that overloading
+    // the error channel for "nothing due" made it indistinguishable from a
+    // dropped connection except by matching German prose. `queue.length === 0`
+    // is a self-describing, typed signal; only persist a session worth resuming.
+    if (queue.length > 0) await persist(session, userId);
     return { ok: true, data: session };
   } catch (err) {
     console.warn('buildSession:', err);

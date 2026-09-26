@@ -38,14 +38,12 @@ export type DeckStatus =
 const PREFETCH_AHEAD = 3;
 
 /**
- * "Nothing is due" is not a failure, but `buildSession` reports it as one:
- * `{ ok:false, error:'Heute ist nichts fällig. Gut gemacht!' }` (lib/api.ts).
- * The only thing separating it from a dropped connection is the wording, so it
- * is matched here rather than dumped into a red error state the learner did
- * nothing to earn. A discriminated result is requested in
- * docs/agents/status/frontend.md; when it lands this constant goes away.
+ * Shown when `buildSession` succeeds with an empty queue (lib/api.ts). Fixed
+ * per the frontend agent's own contract request: nothing-due is now a typed
+ * success (`queue.length === 0`), not a string pattern-matched out of the
+ * error channel — see docs/agents/status/frontend.md #1 for the prior state.
  */
-const NOTHING_DUE = /nichts f(?:ä|ae)llig/i;
+const NOTHING_DUE_MESSAGE = 'Heute ist nichts fällig. Gut gemacht!';
 
 export function useDeckSession(userId: string | null, level: CEFRLevel) {
   const [session, setSession] = useState<DeckSession | null>(null);
@@ -96,8 +94,14 @@ export function useDeckSession(userId: string | null, level: CEFRLevel) {
 
     if (!result.ok) {
       setSession(null);
-      if (NOTHING_DUE.test(result.error)) setNothingDue(result.error);
-      else setError(result.error);
+      setError(result.error);
+      setLoading(false);
+      return;
+    }
+
+    if (result.data.queue.length === 0) {
+      setSession(null);
+      setNothingDue(NOTHING_DUE_MESSAGE);
       setLoading(false);
       return;
     }
