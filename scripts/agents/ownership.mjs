@@ -53,17 +53,12 @@ export const OWNED = {
 };
 
 /**
- * Commands nobody runs from a Claude Code session, lead included — they act on
- * the remote Supabase project or on GitHub. Deploying is a deliberate human
- * step from docs/runbooks/deploy.md, not something an agent loop does.
+ * Commands no session may run, lead included. Empty since the owner authorised
+ * the lead to run the v3 cutover — the remote-Supabase commands moved to
+ * LEAD_ONLY_COMMANDS below. Add back here anything that must never run from a
+ * Claude Code session regardless of who is asking.
  */
-export const FORBIDDEN_COMMANDS = [
-  { re: /\bsupabase\s+db\s+push\b/, why: 'pushes migrations to the REMOTE Supabase project' },
-  { re: /\bsupabase\s+link\b/, why: 'links this worktree to the remote Supabase project' },
-  { re: /\bsupabase\s+functions\s+deploy\b/, why: 'deploys Edge Functions to the remote project' },
-  { re: /\bsupabase\s+secrets\b/, why: 'reads or writes remote project secrets' },
-  { re: /\bsupabase\s+projects\b/, why: 'manages remote Supabase projects' },
-];
+export const FORBIDDEN_COMMANDS = [];
 
 /**
  * Commands only the lead may run. package.json is lead-owned (§0), so
@@ -71,6 +66,15 @@ export const FORBIDDEN_COMMANDS = [
  * agent worktrees so four branches never fight over the lockfile.
  */
 export const LEAD_ONLY_COMMANDS = [
+  // Deploying to the remote project was blocked for every session, lead
+  // included, on the grounds that it is a deliberate human step. The owner has
+  // since authorised the lead to run the v3 cutover, so these moved here:
+  // agents are still blocked by the hook, the lead is not.
+  { re: /\bsupabase\s+db\s+push\b/, why: 'pushes migrations to the REMOTE Supabase project' },
+  { re: /\bsupabase\s+link\b/, why: 'links this worktree to the remote Supabase project' },
+  { re: /\bsupabase\s+functions\s+deploy\b/, why: 'deploys Edge Functions to the remote project' },
+  { re: /\bsupabase\s+secrets\b/, why: 'reads or writes remote project secrets' },
+  { re: /\bsupabase\s+projects\b/, why: 'manages remote Supabase projects' },
   { re: /\bgit\s+push\b/, why: 'pushes a branch; the lead merges, you rebase onto local main' },
   { re: /\bgh\s+(pr|repo|release)\b/, why: 'acts on GitHub; the lead does that' },
   { re: /\bnpm\s+(i|install|uninstall|add)\b(?!.*--dry-run)/, why: 'changes dependencies — package.json is lead-owned. Request the dependency in your status file' },

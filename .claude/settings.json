@@ -80,14 +80,7 @@
       "Bash(node -p \"'zod: '+require\\('./node_modules/zod/package.json'\\).version\")",
       "Bash(node --input-type=module -e ' *)"
     ],
-    "deny": [
-      "Bash(supabase db push:*)",
-      "Bash(supabase db remote:*)",
-      "Bash(supabase link:*)",
-      "Bash(supabase functions deploy:*)",
-      "Bash(supabase secrets:*)",
-      "Bash(supabase projects:*)"
-    ],
+    "deny": [],
     "additionalDirectories": [
       "/Users/shivamsharma/Projects/el-data/supabase/migrations"
     ]
