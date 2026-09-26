@@ -1,0 +1,26 @@
+{
+  "retrievedAt": "2026-09-26T14:37:15.460Z",
+  "files": {
+    "leipzig_news_2023_100k.tar.gz": {
+      "url": "https://downloads.wortschatz-leipzig.de/corpora/deu_news_2023_100K.tar.gz",
+      "licence": "CC BY (Leipzig Corpora Collection) — verify on the download page",
+      "role": "written frequency (primary level signal)",
+      "bytes": 23732987,
+      "sha256": "bb9493e65150e77e91c7c18f8a61f21752d905beb266a3382d6d0cf6931294be"
+    },
+    "opensubtitles_de_50k.txt": {
+      "url": "https://raw.githubusercontent.com/hermitdave/FrequencyWords/master/content/2018/de/de_50k.txt",
+      "licence": "MIT (repo) over OpenSubtitles/OPUS data (CC BY-SA)",
+      "role": "spoken frequency (signal 2)",
+      "bytes": 662497,
+      "sha256": "d9e50546fd7e8b6fe6542a2b33c51d1331092b2a3916ec09f80d97856068705b"
+    },
+    "leipzig_words.tsv": {
+      "derivedFrom": "leipzig_news_2023_100k.tar.gz",
+      "licence": "CC BY (Leipzig Corpora Collection) — verify on the download page",
+      "role": "written frequency (primary level signal)",
+      "bytes": 3654229,
+      "sha256": "d76448045eb93e5f3d263192f882ea65e0795a831dc65b5e563e3ceaf694b7dc"
+    }
+  }
+}

@@ -128,7 +128,9 @@ export function readJsonl(path) {
 
 // ──────────────────────────────────────────────────────────── model ──
 
-const anthropic = new Anthropic();
+/** Built lazily: requireKey() may still need to load the key from the env file. */
+let _client = null;
+const client = () => (_client ??= new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY }));
 
 export function costOf(model, usage) {
   const p = PRICES[model];
@@ -141,7 +143,7 @@ export function costOf(model, usage) {
  * zod helper emits, used directly so the pipeline needs no zod dependency.
  */
 export async function ask({ model, system, user, schema, maxTokens = 8000, effort }) {
-  const res = await anthropic.messages.create({
+  const res = await client().messages.create({
     model,
     max_tokens: maxTokens,
     system,
