@@ -39,10 +39,10 @@ const STAGES = [
   ['00_fetch_sources', 'fetch open corpora'],
   ['01_pool', 'lemmatise + filter pool'],
   ['02_signals', 'frequency / spoken / morphology'],
-  ['03_level_batch', 'model level judgment ×3'],
+  ['03_level', 'model level judgment ×3'],
   ['04_gate', 'ensemble + confidence gate'],
   ['05_calibrate', 'score vs gold set'],
-  ['06_enrich_batch', 'article, forms, examples'],
+  ['06_enrich', 'article, forms, examples'],
   ['07_validate', 'Wiktionary cross-check'],
   ['08_seed', 'emit seed SQL'],
 ];
