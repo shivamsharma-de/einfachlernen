@@ -1,0 +1,7 @@
+# Downloaded corpora and pipeline intermediates: large, and fully reproducible
+# from scripts/content + MANIFEST.json. Only provenance, the gold set and the
+# calibration report are worth versioning — the seed SQL is the real deliverable.
+sources/*
+!sources/MANIFEST.json
+stage/
+state.json
