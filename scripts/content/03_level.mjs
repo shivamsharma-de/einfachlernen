@@ -40,7 +40,7 @@ const SCHEMA = {
         properties: {
           s: { type: 'string', description: 'the surface form exactly as given' },
           l: { type: 'string', description: 'dictionary form: nominative singular for nouns, infinitive for verbs' },
-          p: { type: 'string', enum: ['noun', 'verb', 'adjective', 'adverb', 'other'] },
+          p: { type: 'string', enum: ['noun', 'verb', 'adjective', 'adverb', 'phrase', 'conjunction', 'preposition', 'pronoun', 'number', 'interjection'] },
           v: { type: 'string', enum: ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'] },
           k: { type: 'boolean', description: 'true if this is general vocabulary worth teaching; false for proper nouns, names, places, brands, abbreviations, foreign words, fragments' },
         },

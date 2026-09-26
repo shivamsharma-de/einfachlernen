@@ -44,7 +44,9 @@ function checkRow(r, wik) {
 
   if (r.word_type === 'noun') {
     if (!r.article) problems.push('noun without article');
-    if (!r.forms?.plural) problems.push('noun without plural');
+    // A missing plural is NOT a rejection: Hunger, Durst, Obst and every mass
+    // noun genuinely have none, and rejecting them threw away 386 good words.
+    // The card omits the plural line when it is absent.
   } else if (r.article) {
     problems.push('article on a non-noun');
   }

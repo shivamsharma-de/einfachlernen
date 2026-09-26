@@ -38,7 +38,7 @@ const SCHEMA = {
         properties: {
           l: { type: 'string', description: 'the lemma exactly as given' },
           a: { type: 'string', enum: ['der', 'die', 'das', 'none'], description: "article; 'none' for non-nouns" },
-          t: { type: 'string', enum: ['noun', 'verb', 'adjective', 'adverb', 'other'] },
+          t: { type: 'string', enum: ['noun', 'verb', 'adjective', 'adverb', 'phrase', 'conjunction', 'preposition', 'pronoun', 'number', 'interjection'] },
           e: { type: 'string', description: 'concise English meaning, one line' },
           pl: { type: 'string', description: "plural form for nouns; 'none' otherwise" },
           pp: { type: 'string', description: "Partizip II for verbs; 'none' otherwise" },
