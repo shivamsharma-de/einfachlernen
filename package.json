@@ -10,8 +10,9 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests",
     "bundle": "expo export --platform ios --output-dir .expo-bundle-check",
-    "agents:check": "bash scripts/agents/check-ownership.sh",
-    "agents:prompt": "bash scripts/agents/prompt.sh"
+    "agents:check": "node scripts/agents/check-ownership.mjs",
+    "agents:prompt": "bash scripts/agents/prompt.sh",
+    "agents:status": "node scripts/agents/status.mjs"
   },
   "dependencies": {
     "@expo/ngrok": "^4.1.0",

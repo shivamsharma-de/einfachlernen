@@ -61,7 +61,13 @@
       "Bash(chmod +x scripts/agents/*.sh)",
       "Bash(open -a OrbStack)",
       "Bash(docker info *)",
-      "Bash(docker --version)"
+      "Bash(docker --version)",
+      "Bash(supabase start *)",
+      "Bash(bash /private/tmp/claude-501/-Users-shivamsharma-Projects-einfachlernen/0f341538-f17c-49dd-9214-142a6e99de8a/scratchpad/guardtest.sh)",
+      "Bash(bash /private/tmp/claude-501/-Users-shivamsharma-Projects-einfachlernen/0f341538-f17c-49dd-9214-142a6e99de8a/scratchpad/guardcmds.sh)",
+      "Bash(psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -t -c \"select 'de_words: '||count\\(*\\) from de_words union all select 'de_redemittel: '||count\\(*\\) from de_redemittel union all select 'tables: '||count\\(*\\) from information_schema.tables where table_schema='public';\")",
+      "Bash(docker exec *)",
+      "Bash(bash /private/tmp/claude-501/-Users-shivamsharma-Projects-einfachlernen/0f341538-f17c-49dd-9214-142a6e99de8a/scratchpad/guardcmds2.sh)"
     ],
     "deny": [
       "Bash(supabase db push:*)",
@@ -70,6 +76,19 @@
       "Bash(supabase functions deploy:*)",
       "Bash(supabase secrets:*)",
       "Bash(supabase projects:*)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|Edit|Write|MultiEdit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/scripts/agents/guard.mjs\""
+          }
+        ]
+      }
     ]
   }
 }
