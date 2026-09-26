@@ -233,10 +233,24 @@ function SwipeCard({
   // so the same word and the same cycle count come back and React reuses this
   // instance — with `pan` still parked off screen. Recentring on every cycle
   // covers it, and is a no-op on a fresh mount.
+  //
+  // `flip` is snapped shut here too, synchronously via `setValue`, rather than
+  // animated. Starting an ANIMATED, native-driven transition on the same
+  // render its backing value is created can race the native view registering
+  // with the native animated graph and silently no-op — a known
+  // useNativeDriver gotcha, and exactly the shape of "the first card's flip
+  // works, a later one doesn't": the screen's very first mount has different
+  // timing than a mid-session remount racing a just-committed fly-off
+  // animation. `pan` never had this bug because it already used `setValue`.
   useEffect(() => {
     pan.setValue({ x: 0, y: 0 });
-  }, [cycle, card.word.id, pan]);
+    flip.setValue(0);
+  }, [cycle, card.word.id, pan, flip]);
 
+  // The actual reveal/un-reveal animation. Runs on a genuine user action (tap
+  // to reveal) or on "Mischen" un-revealing the same card in place (no
+  // remount) — never on mount, since the effect above has already snapped the
+  // value by the time this one's dependency (`revealed`) is first read here.
   useEffect(() => {
     // 130ms: fast enough to read as instant (NFR: flip < 100ms perceived — the
     // face swaps at the halfway point, so the answer is legible at ~65ms).
