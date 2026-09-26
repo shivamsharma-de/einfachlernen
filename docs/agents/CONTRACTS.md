@@ -22,8 +22,12 @@ An agent writes **only** inside its own paths. Reading anything is fine.
 | `supabase/functions/**`, `lib/**` (except `lib/supabase.ts`), `lib/__tests__/**` | **backend** |
 | `components/**`, `constants/Colors.ts`, `docs/design/**`, `assets/**` | **design** |
 | `app/**`, `hooks/**`, `context/**`, `_screens_auth/**` (to be moved into `app/`) | **frontend** |
-| `types/contracts.ts`, `docs/agents/CONTRACTS.md`, `package.json`, `app.json`, `lib/supabase.ts`, `types/index.ts` | **lead only** (bootstrap / merges) |
+| `types/contracts.ts`, `docs/agents/CONTRACTS.md`, `package.json`, `app.json`, `lib/supabase.ts`, `types/index.ts`, `CLAUDE.md`, `vitest.config.ts`, `supabase/config.toml`, `scripts/agents/**`, `.claude/settings.json` | **lead only** (bootstrap / merges) |
 | `docs/agents/status/<agent>.md` | that agent |
+
+`npm run agents:check <agent>` checks your branch against this table; run it before every commit, and
+expect the lead to run it before every merge. Note that `lib/api.ts` is created by the lead during
+bootstrap but **owned by backend** from then on — backend replaces the stub bodies, never the signatures (§4).
 
 Nobody edits migrations `001`–`005` — they are already applied to the remote project.
 

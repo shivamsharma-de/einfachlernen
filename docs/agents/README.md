@@ -28,9 +28,15 @@ unfinished code. Both are removed up front:
 
 ---
 
-## 2. Bootstrap — lead, once, before fan-out (~30–45 min)
+## 2. Bootstrap — lead, once, before fan-out (~30–45 min) — ✅ DONE
 
-The repo currently has a lot of **uncommitted** v2 work (deck, scan, profile, components, Edge Functions,
+> **Status: complete.** Commits `06f7150` (v2 work) and the `v3 bootstrap` commit that follows it.
+> `types/contracts.ts`, `lib/api.ts` stubs, the npm scripts, `supabase/config.toml`, the status files,
+> `CLAUDE.md` and `scripts/agents/**` are all on `main`. The steps below are kept as the record of what
+> was done. Local prerequisites installed at the same time: **OrbStack** (Docker 29.4.0, for the local
+> Supabase stack) and **Deno 2.9.7** (for `deno check`).
+
+The repo had a lot of **uncommitted** v2 work (deck, scan, profile, components, Edge Functions,
 migration 005). Worktrees are created from commits, so an uncommitted file does not exist for the agents.
 
 ```bash
@@ -48,13 +54,24 @@ npm i -D vitest tsx csv-parse
 #   - types/contracts.ts        ← copy §3 of CONTRACTS.md verbatim
 #   - lib/api.ts                ← §4 signatures as stubs (see CONTRACTS §4)
 #   - docs/agents/status/{data,backend,design,frontend}.md  ← empty template (below)
-#   - package.json scripts: "typecheck": "tsc --noEmit", "test": "vitest run",
-#                            "bundle": "expo export --platform ios --output-dir /tmp/el-bundle"
+#   - package.json scripts: "typecheck": "tsc --noEmit", "test": "vitest run --passWithNoTests",
+#                            "bundle": "expo export --platform ios --output-dir .expo-bundle-check"
+#     (worktree-local and gitignored — a shared /tmp path would have four agents
+#      bundling into the same directory at once)
+#   - vitest.config.ts scoping tests to lib/__tests__/** and scripts/** (pure TS only;
+#     RN/JSX is covered by typecheck + bundle)
+#   - CLAUDE.md (auto-loaded in every worktree: ownership table + hard rules)
+#   - scripts/agents/check-ownership.sh, scripts/agents/prompt.sh
 npx tsc --noEmit
 git add -A && git commit -m "v3 bootstrap: contracts, api stubs, deps, agent docs"
 
-# 2.4 Local Supabase for agents (needs Docker running). There is no supabase/config.toml yet.
+# 2.4 Local Supabase for agents (needs Docker running — OrbStack provides it).
 supabase init          # creates supabase/config.toml; commit it
+#   Then set [db.seed] sql_paths = ["./seeds/0[1-9][0-9]_*.sql"] — NOT "./seeds/*.sql".
+#   seeds/001 and 002 are copies of migrations 003/004 without their
+#   ON CONFLICT (id) DO NOTHING, so applying both breaks `db reset` on a PK conflict.
+#   The glob lets the data agent's new 010_* seeds load while excluding the duplicates.
+cp supabase/functions/.env.example supabase/functions/.env.local   # add ANTHROPIC_API_KEY (gitignored)
 git add supabase/config.toml && git commit -m "supabase init for local dev"
 
 # 2.5 Worktrees
@@ -98,6 +115,8 @@ All four start at once. No agent waits on another to *start*; the dependencies b
 
 1. Read `docs/PRD-v3.md`, `docs/agents/CONTRACTS.md` and your brief fully before writing code.
 2. Write only inside your owned paths (CONTRACTS §0; data also owns `supabase/tests/**`). Need a change elsewhere → status file request.
+   `npm run agents:check <agent>` proves it — run it before every commit. Each worktree also carries a
+   `.claude/settings.local.json` that denies edits outside your paths and blocks every remote-Supabase command.
 3. Never edit `CONTRACTS.md` or `types/contracts.ts`. Never change a contract signature.
 4. Never run `supabase db push`, `supabase functions deploy`, `supabase secrets set`, or anything touching the
    remote project. Local only: `supabase start`, `supabase db reset`, `supabase functions serve`.
@@ -120,8 +139,22 @@ All four start at once. No agent waits on another to *start*; the dependencies b
 | **M3** | B1 official + B2–C2 estimated; review CSV loop; runbooks | rate limits, errors mapped to German, offline grade buffer | a11y pass (contrast, 44pt, wrapping) | wire to real API, analytics events, profile settings |
 
 **Merge order at each milestone: data → backend → design → frontend.** The lead merges into `main`
-(`git merge --no-ff agent/<x>`), runs `npm run typecheck && npm test && npm run bundle`, then tells the
-others to rebase. Because paths are disjoint, conflicts should only appear in lead-owned files.
+(`npm run agents:check <x>` first, then `git merge --no-ff agent/<x>`), runs
+`npm run typecheck && npm test && npm run bundle`, then tells the others to rebase. Because paths are
+disjoint, conflicts should only appear in lead-owned files.
+
+### 5a. One local Supabase stack, shared by four worktrees
+
+The CLI binds fixed ports (API 54321, DB 54322, Studio 54323, Inbucket 54324) from
+`supabase/config.toml`, and every worktree has the same copy of it. So there is exactly **one** local
+stack, not four — and a `supabase db reset` wipes whatever anyone else is testing against.
+
+- **The stack belongs to the data agent until migration 006 is merged to `main`.** That costs nothing:
+  backend's M1 (`lib/shuffle.ts` + tests, `lib/api.ts` deck functions on a mocked Supabase client) needs
+  no database, and design and frontend never touch one.
+- **From M2 it is shared.** Announce a reset in your status file before you run it.
+- `db reset` applies migrations `001+` and seeds matching `seeds/0[1-9][0-9]_*.sql` (see §2.4).
+- Edge Functions: `supabase functions serve --env-file supabase/functions/.env.local`.
 
 ---
 
