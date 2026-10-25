@@ -1,15 +1,37 @@
 import { useEffect } from 'react';
-import { View } from 'react-native';
+import { AppState, View } from 'react-native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
-import { AuthProvider } from '../context/auth';
+import { AuthProvider, useAuth } from '../context/auth';
+import { flushReviews } from '../lib/api';
 import { Colors, Font } from '../constants/Colors';
 
 // Hold the native splash until the faces are ready, so the first frame is
 // already typeset rather than flashing system sans and reflowing.
 void SplashScreen.preventAutoHideAsync();
+
+/**
+ * Sends queued grades whenever they could now succeed: right after sign-in, and
+ * each time the app returns to the foreground. Grades made offline wait here
+ * until the connection is back. Renders nothing.
+ */
+function ReviewSync() {
+  const { user } = useAuth();
+  const userId = user?.id ?? null;
+
+  useEffect(() => {
+    if (!userId) return;
+    void flushReviews(userId);
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') void flushReviews(userId);
+    });
+    return () => sub.remove();
+  }, [userId]);
+
+  return null;
+}
 
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
@@ -32,6 +54,7 @@ export default function RootLayout() {
 
   return (
     <AuthProvider>
+      <ReviewSync />
       <StatusBar style="light" />
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: Colors.bg }, animation: 'slide_from_right' }} />
     </AuthProvider>

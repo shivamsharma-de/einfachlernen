@@ -465,3 +465,51 @@ export async function nextDueAt(): Promise<Result<string | null>> {
   if (error) return { ok: false, error: germanError(error) };
   return { ok: true, data: (data as string | null) ?? null };
 }
+
+export type ThemeSummary = { thema: string; total: number; started: number; due: number };
+
+/** Per-theme totals for one level, computed by the server (migration 012). */
+export async function levelThemes(level: CEFRLevel): Promise<Result<ThemeSummary[]>> {
+  const { data, error } = await supabase.rpc('level_themes', {
+    p_level: level,
+    p_today: localISODate(),
+  });
+  if (error) return { ok: false, error: germanError(error) };
+  return {
+    ok: true,
+    data: ((data ?? []) as ThemeSummary[]).map((r) => ({
+      thema: r.thema,
+      total: Number(r.total),
+      started: Number(r.started),
+      due: Number(r.due),
+    })),
+  };
+}
+
+/** Words due today for the signed-in learner, most overdue first, capped for display. */
+export async function dueWords(limit = 200): Promise<Result<DeckWord[]>> {
+  try {
+    const { data: rows, error } = await supabase
+      .from('word_progress')
+      .select('word_id, next_review_at')
+      .eq('mastered', false)
+      .lte('next_review_at', localISODate())
+      .order('next_review_at', { ascending: true })
+      .limit(limit);
+    if (error) throw error;
+    const ids = (rows ?? []).map((r) => r.word_id as string);
+    if (ids.length === 0) return { ok: true, data: [] };
+
+    const { data: words, error: wordsError } = await supabase
+      .from('deck_words')
+      .select('*')
+      .in('id', ids);
+    if (wordsError) throw wordsError;
+
+    const byId = new Map((words ?? []).map((w) => [w.id as string, w as DeckWord]));
+    return { ok: true, data: ids.map((id) => byId.get(id)).filter((w): w is DeckWord => !!w) };
+  } catch (err) {
+    console.warn('dueWords:', err);
+    return { ok: false, error: germanError(err) };
+  }
+}

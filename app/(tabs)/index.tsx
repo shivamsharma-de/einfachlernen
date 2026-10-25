@@ -5,10 +5,10 @@ import {
 import { useRouter } from 'expo-router';
 import { Colors, Type, Space, Radius, THEMEN } from '../../constants/Colors';
 import { Eyebrow, ProgressRing, StatPair, SectionShelf, WordRow } from '../../components';
-import { fetchWordsByLevel, fetchWordCountsByLevel } from '../../lib/db';
+import { countByLevel, levelThemes, dueWords, type ThemeSummary } from '../../lib/api';
+import type { DeckWord } from '../../types/contracts';
 import { useAuth } from '../../context/auth';
 import { levelOf } from '../../lib/profile';
-import { fetchDueWordIds } from '../../lib/deck';
 import { fetchToday, fetchStreak, DAILY_MINUTES_GOAL } from '../../lib/activity';
 import { stufe } from '../../lib/progress';
 import { Word } from '../../types';
@@ -31,82 +31,94 @@ function themaEnglish(category: string): string | null {
   return match ? match.en : null;
 }
 
+/** WordRow renders a Word; the server returns a DeckWord. Only display fields are needed. */
+function toWordRow(w: DeckWord): Word {
+  return {
+    id: w.id,
+    level: w.level,
+    category: w.thema ?? 'Allgemein',
+    word_type: w.word_type,
+    german: w.german,
+    article: w.article,
+    english: w.english,
+    pronunciation: null,
+    cultural_context: null,
+    synonyms: [],
+    antonyms: [],
+    forms: w.forms as Word['forms'],
+    hint: null,
+    example_de: w.example_de,
+    example_en: w.example_en,
+    distractors: [],
+    source: w.origin,
+  };
+}
+
 export default function HomeScreen() {
   const router = useRouter();
   const { user, profile } = useAuth();
   // Level is read-only here — it is chosen in Profil and nowhere else (PRD v2 D1).
   const level = levelOf(profile);
 
-  const [words, setWords] = useState<Word[]>([]);
+  const [themes, setThemes] = useState<ThemeSummary[]>([]);
+  const [due, setDue] = useState<DeckWord[]>([]);
   const [counts, setCounts] = useState<Record<string, number>>({});
-  const [dueIds, setDueIds] = useState<string[]>([]);
   const [minutes, setMinutes] = useState(0);
   const [streak, setStreak] = useState(0);
   const [loading, setLoading] = useState(true);
 
+  // Catalogue size per level: server-counted, so it is correct past 1,000 rows.
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      const allCounts = await fetchWordCountsByLevel();
-      if (cancelled) return;
-      setCounts(allCounts);
+      const result = await countByLevel();
+      if (cancelled || !result.ok) return;
+      setCounts(Object.fromEntries(Object.entries(result.data).map(([k, v]) => [k, v.total])));
     })();
     return () => { cancelled = true; };
   }, []);
 
+  // Today's activity and streak. Due cards are loaded with the level below.
   useEffect(() => {
     if (!user) return;
     let cancelled = false;
     void (async () => {
-      const [ids, today, streakValue] = await Promise.all([
-        fetchDueWordIds(user.id), fetchToday(user.id), fetchStreak(),
-      ]);
+      const [today, streakValue] = await Promise.all([fetchToday(user.id), fetchStreak()]);
       if (cancelled) return;
-      setDueIds(ids);
       setMinutes(today?.minutes ?? 0);
       setStreak(streakValue);
     })();
     return () => { cancelled = true; };
   }, [user]);
 
+  // Themen shelf and due list. Both come from the server, so neither is capped.
   useEffect(() => {
+    if (!user) return;
     let cancelled = false;
     setLoading(true);
     void (async () => {
-      const rows = await fetchWordsByLevel([level]);
+      const [themeResult, dueResult] = await Promise.all([levelThemes(level), dueWords()]);
       if (cancelled) return;
-      setWords(rows);
+      setThemes(themeResult.ok ? themeResult.data : []);
+      setDue(dueResult.ok ? dueResult.data : []);
       setLoading(false);
     })();
     return () => { cancelled = true; };
-  }, [level]);
+  }, [level, user]);
 
   const now = new Date();
   const hello = greeting(now.getHours());
 
-  // Themen shelf: real categories present at this level, largest first.
-  const themen = useMemo(() => {
-    const byCategory = new Map<string, number>();
-    for (const w of words) byCategory.set(w.category, (byCategory.get(w.category) ?? 0) + 1);
-    return [...byCategory.entries()]
-      .map(([category, total]) => ({ category, total }))
-      .sort((a, b) => b.total - a.total);
-  }, [words]);
+  // Themen shelf: server-side totals, largest theme first.
+  const themen = useMemo(
+    () => themes.map(t => ({ category: t.thema, total: t.total, started: t.started })),
+    [themes],
+  );
 
-  // Continue card targets the largest Thema at this level. `done` counts the
-  // words in it the learner has actually started a card for.
+  // Continue card targets the largest Thema at this level. `done` is the
+  // server's count of words in it the learner has actually started.
   const current = themen[0] ?? null;
-
-  const due = useMemo(() => {
-    const ids = new Set(dueIds);
-    return words.filter(w => ids.has(w.id));
-  }, [dueIds, words]);
-
-  const currentDone = useMemo(() => {
-    if (!current) return 0;
-    const started = new Set(dueIds);
-    return words.filter(w => w.category === current.category && started.has(w.id)).length;
-  }, [current, words, dueIds]);
+  const currentDone = current ? themes[0]?.started ?? 0 : 0;
 
   // Due words all lead into the deck — that is where they get reviewed.
   const openWord = useCallback(() => router.push('/(tabs)/deck'), [router]);
@@ -224,7 +236,7 @@ export default function HomeScreen() {
               Nichts fällig. Karten erscheinen hier, sobald du sie im Deck bewertet hast.
             </Text>
           ) : (
-            due.map(word => <WordRow key={word.id} word={word} onPress={openWord} />)
+            due.map(word => <WordRow key={word.id} word={toWordRow(word)} onPress={openWord} />)
           )}
         </View>
 
