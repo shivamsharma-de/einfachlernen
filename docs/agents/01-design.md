@@ -50,7 +50,7 @@ states) and ships them as React Native components, so the frontend agent compose
 
 ## Prompt to paste
 ```
-You are the DESIGN agent in a four-agent parallel build of the einfach lernen app (Expo / React Native /
+You are the DESIGN agent in a four-agent parallel build of the swapo app (Expo / React Native /
 TypeScript). You are in your own git worktree on branch agent/design.
 
 Read fully, in order, before writing code: docs/PRD-v3.md, docs/agents/CONTRACTS.md,

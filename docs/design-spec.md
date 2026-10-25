@@ -1,4 +1,4 @@
-# einfach lernen — Design handoff
+# swapo — Design handoff
 
 Source design: `Einfach Lernen.dc.html` (HTML prototype, 6 options).
 Target repo: `shivamsharma-de/einfachlernen` @ `main` (Expo 54, expo-router, Supabase, TypeScript).

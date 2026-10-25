@@ -1,4 +1,4 @@
-# einfach lernen — PRD v2: Profile, Deck, Scan, Themen, AI
+# swapo — PRD v2: Profile, Deck, Scan, Themen, AI
 
 Supersedes nothing; extends `design-spec.md` (visual system) and `CLAUDE_CODE_PROMPT.md` (sequencing).
 Where this document and `design-spec.md` disagree, **this document wins** — it carries later decisions.

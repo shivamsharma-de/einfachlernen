@@ -1,4 +1,4 @@
-# einfach lernen
+# swapo
 
 Expo 57 / expo-router / React Native / TypeScript. Supabase (Postgres + Auth + Edge Functions on
 Deno) and the Anthropic API behind those functions. PostHog for analytics.

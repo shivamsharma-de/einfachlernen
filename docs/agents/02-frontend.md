@@ -12,7 +12,7 @@ end to end and upgrading deck and scan to the v3 behaviour.
 ## Deliverables (PRD IDs)
 1. **Auth gate & routing — F1.1–F1.4, F1.6.** Move `_screens_auth/*` into `app/` (routes in CONTRACTS §6).
    `app/index.tsx` routes by session + `profile.onboarding_complete`. Handle the OAuth callback deep link
-   (`scheme: einfachlernen`) in Expo Go. Sign out in Profil clears session, deck cache, PostHog.
+   (`scheme: swapo`) in Expo Go. Sign out in Profil clears session, deck cache, PostHog.
 2. **Apple sign-in — F1.5** in `context/auth.tsx` with `expo-apple-authentication` →
    `supabase.auth.signInWithIdToken({ provider: 'apple', token })`. Show the button only when
    `AppleAuthentication.isAvailableAsync()` is true (hides in Expo Go/Android).
@@ -46,7 +46,7 @@ end to end and upgrading deck and scan to the v3 behaviour.
 
 ## Prompt to paste
 ```
-You are the FRONTEND agent in a four-agent parallel build of the einfach lernen app (Expo 57 / expo-router /
+You are the FRONTEND agent in a four-agent parallel build of the swapo app (Expo 57 / expo-router /
 React Native / TypeScript / Supabase). You are in your own git worktree on branch agent/frontend.
 
 Read fully, in order, before writing code: docs/PRD-v3.md, docs/agents/CONTRACTS.md,

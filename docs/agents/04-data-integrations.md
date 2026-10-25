@@ -143,7 +143,7 @@ yourself (`content/sources/sample.csv`) so every stage is exercised.
 - `deploy.md` — secrets (`ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL_TEXT`, `ANTHROPIC_MODEL_VISION`),
   `supabase db push`, deploying `word-ai`, `scan-words`, `import-scan`, applying the seed, smoke tests.
 - `auth-providers.md` — Google: OAuth clients, Supabase Auth provider config, redirect URLs for Expo Go
-  (`exp://…/--/auth/callback`) and the app scheme (`einfachlernen://auth/callback`). Apple: Developer
+  (`exp://…/--/auth/callback`) and the app scheme (`swapo://auth/callback`). Apple: Developer
   membership, App ID, Services ID, key, Supabase provider config, `ios.usesAppleSignIn` + bundle id in
   `app.json` (lead change), EAS dev build steps.
 - `analytics.md` — replacing the PostHog placeholder key via env; event list from PRD F7.
@@ -156,7 +156,7 @@ except the batch stages; `npm run content:status` renders your `state.json` with
 
 ## Prompt to paste
 ```
-You are the DATA & INTEGRATIONS agent in a four-agent parallel build of the einfach lernen app (Expo /
+You are the DATA & INTEGRATIONS agent in a four-agent parallel build of the swapo app (Expo /
 React Native client, Supabase Postgres + Edge Functions, Anthropic API). You are in your own git worktree
 on branch agent/data.
 

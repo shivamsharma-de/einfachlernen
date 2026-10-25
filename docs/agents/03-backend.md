@@ -55,7 +55,7 @@ in `supabase/functions/_shared/__fixtures__/schema.sql` (do not add it to migrat
 
 ## Prompt to paste
 ```
-You are the BACKEND agent in a four-agent parallel build of the einfach lernen app (Expo / React Native /
+You are the BACKEND agent in a four-agent parallel build of the swapo app (Expo / React Native /
 TypeScript client, Supabase Postgres + Edge Functions on Deno, Anthropic API). You are in your own git
 worktree on branch agent/backend.
 

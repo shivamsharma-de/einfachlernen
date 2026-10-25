@@ -1,4 +1,4 @@
-# einfach lernen — PRD v3: Level decks, Scan-to-deck, Vocabulary content
+# swapo — PRD v3: Level decks, Scan-to-deck, Vocabulary content
 
 Extends `PRD-v2.md` (decisions D1–D7 still stand) and `design-spec.md` (visual system).
 Where this document disagrees with either, **this document wins**.
