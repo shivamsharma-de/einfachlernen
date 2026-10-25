@@ -45,7 +45,9 @@ const PREFETCH_AHEAD = 3;
  */
 const NOTHING_DUE_MESSAGE = 'Heute ist nichts fällig. Gut gemacht!';
 
-export function useDeckSession(userId: string | null, level: CEFRLevel) {
+export function useDeckSession(userId: string | null, levels: CEFRLevel[]) {
+  // A stable key, so a new array with the same levels does not reload the deck.
+  const levelKey = levels.join(',');
   const [session, setSession] = useState<DeckSession | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -100,7 +102,7 @@ export function useDeckSession(userId: string | null, level: CEFRLevel) {
       }
     }
 
-    const result = await buildSession(userId, level);
+    const result = await buildSession(userId, levelKey.split(',') as CEFRLevel[]);
     if (token !== loadToken.current) return;
 
     if (!result.ok) {
@@ -122,7 +124,7 @@ export function useDeckSession(userId: string | null, level: CEFRLevel) {
     setReviewed(0);
     setLoading(false);
     track('session_started', { due: result.data.stats.due, new: result.data.stats.new });
-  }, [userId, level]);
+  }, [userId, levelKey]);
 
   useEffect(() => { void load('resume'); }, [load]);
 

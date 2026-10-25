@@ -7,7 +7,7 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Colors, Type, Space, Radius, HIT, ARTICLE_COLOR } from '../../constants/Colors';
 import { Eyebrow, LevelBadge, PillButton } from '../../components';
 import { useAuth } from '../../context/auth';
-import { levelOf } from '../../lib/profile';
+import { levelsOf } from '../../lib/profile';
 import { scanImage, ScanOutcome } from '../../lib/ocr';
 import { addToDeck } from '../../lib/deck';
 import { Word } from '../../types';
@@ -23,7 +23,8 @@ const GROUPS: { key: string; label: string; types: string[] }[] = [
 
 export default function ScanScreen() {
   const { user, profile } = useAuth();
-  const level = levelOf(profile);
+  // Scan relevance is 'at or above' a floor; with several levels, the lowest is that floor.
+  const level = levelsOf(profile)[0];
 
   const [permission, requestPermission] = useCameraPermissions();
   const cameraRef = useRef<CameraView | null>(null);

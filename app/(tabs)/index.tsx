@@ -8,7 +8,7 @@ import { Eyebrow, ProgressRing, StatPair, SectionShelf, WordRow } from '../../co
 import { countByLevel, levelThemes, dueWords, type ThemeSummary } from '../../lib/api';
 import type { DeckWord } from '../../types/contracts';
 import { useAuth } from '../../context/auth';
-import { levelOf } from '../../lib/profile';
+import { levelsOf } from '../../lib/profile';
 import { fetchToday, fetchStreak, DAILY_MINUTES_GOAL } from '../../lib/activity';
 import { stufe } from '../../lib/progress';
 import { Word } from '../../types';
@@ -58,7 +58,9 @@ export default function HomeScreen() {
   const router = useRouter();
   const { user, profile } = useAuth();
   // Level is read-only here — it is chosen in Profil and nowhere else (PRD v2 D1).
-  const level = levelOf(profile);
+  const levels = levelsOf(profile);
+  const levelKey = levels.join(',');
+  const levelLabel = levels.join(' · ');
 
   const [themes, setThemes] = useState<ThemeSummary[]>([]);
   const [due, setDue] = useState<DeckWord[]>([]);
@@ -97,14 +99,14 @@ export default function HomeScreen() {
     let cancelled = false;
     setLoading(true);
     void (async () => {
-      const [themeResult, dueResult] = await Promise.all([levelThemes(level), dueWords()]);
+      const [themeResult, dueResult] = await Promise.all([levelThemes(levelKey.split(',') as typeof levels), dueWords()]);
       if (cancelled) return;
       setThemes(themeResult.ok ? themeResult.data : []);
       setDue(dueResult.ok ? dueResult.data : []);
       setLoading(false);
     })();
     return () => { cancelled = true; };
-  }, [level, user]);
+  }, [levelKey, user]);
 
   const now = new Date();
   const hello = greeting(now.getHours());
@@ -138,7 +140,7 @@ export default function HomeScreen() {
               <Text style={styles.helloEn}>{hello.en}</Text>
             </View>
             <View style={styles.levelCircle}>
-              <Text style={styles.levelCircleText}>{level}</Text>
+              <Text style={styles.levelCircleText}>{levels.length > 1 ? `${levels.length}×` : levels[0]}</Text>
             </View>
           </View>
         </View>
@@ -204,7 +206,7 @@ export default function HomeScreen() {
         {loading ? (
           <ActivityIndicator color={Colors.textMuted} style={styles.loader} />
         ) : themen.length > 0 && (
-          <SectionShelf title={`Themen · ${level}`}>
+          <SectionShelf title={`Themen · ${levelLabel}`}>
             {themen.map(t => (
               <TouchableOpacity
                 key={t.category}
@@ -228,7 +230,7 @@ export default function HomeScreen() {
 
         {/* 6 — Fällig heute */}
         <View style={styles.gutter}>
-          <Eyebrow right={<Text style={styles.dueTotal}>{counts[level] ?? 0} gesamt</Text>}>
+          <Eyebrow right={<Text style={styles.dueTotal}>{levels.reduce((sum, l) => sum + (counts[l] ?? 0), 0)} gesamt</Text>}>
             Fällig heute
           </Eyebrow>
           {due.length === 0 ? (

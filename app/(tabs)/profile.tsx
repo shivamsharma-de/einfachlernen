@@ -5,9 +5,9 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Colors, Type, Space, Radius, HIT } from '../../constants/Colors';
-import { Eyebrow, LevelChipRow, PillButton, StatPair } from '../../components';
+import { Eyebrow, PillButton, StatPair } from '../../components';
 import { useAuth } from '../../context/auth';
-import { levelOf, updateLevel, updateDisplayName } from '../../lib/profile';
+import { levelsOf, updateLevels, updateDisplayName } from '../../lib/profile';
 import { fetchToday, fetchStreak, DAILY_MINUTES_GOAL } from '../../lib/activity';
 import { stufe } from '../../lib/progress';
 import { CEFRLevel } from '../../types';
@@ -29,7 +29,7 @@ export default function ProfileScreen() {
   const [cards, setCards] = useState(0);
   const [streak, setStreak] = useState(0);
 
-  const level = levelOf(profile);
+  const levels = levelsOf(profile);
 
   useEffect(() => {
     setName(profile?.display_name ?? '');
@@ -48,14 +48,18 @@ export default function ProfileScreen() {
     return () => { cancelled = true; };
   }, [user]);
 
-  /** The only place in the app that writes cefr_level (PRD v2 D1). */
-  const changeLevel = useCallback(async (next: CEFRLevel) => {
-    if (!user || next === level) return;
+  /** Tap a level to add or remove it. At least one must stay selected. */
+  const toggleLevel = useCallback(async (target: CEFRLevel) => {
+    if (!user) return;
+    const next = levels.includes(target)
+      ? levels.filter((l) => l !== target)
+      : [...levels, target];
+    if (next.length === 0) return;
     setSavingLevel(true);
-    await updateLevel(user.id, next);
+    await updateLevels(user.id, next);
     await refreshProfile();
     setSavingLevel(false);
-  }, [user, level, refreshProfile]);
+  }, [user, levels, refreshProfile]);
 
   const saveName = useCallback(async () => {
     if (!user) return;
@@ -118,14 +122,25 @@ export default function ProfileScreen() {
             </Eyebrow>
           </View>
           <View style={styles.chipRow}>
-            <LevelChipRow
-              levels={LEVELS}
-              value={level}
-              onChange={(next) => { void changeLevel(next); }}
-            />
+            {LEVELS.map((l) => {
+              const on = levels.includes(l);
+              return (
+                <TouchableOpacity
+                  key={l}
+                  onPress={() => { void toggleLevel(l); }}
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: on }}
+                  accessibilityLabel={`${l}, ${on ? 'ausgewählt' : 'nicht ausgewählt'}`}
+                  style={[styles.levelChip, on && styles.levelChipOn]}
+                  activeOpacity={0.85}
+                >
+                  <Text style={[styles.levelChipText, on && styles.levelChipTextOn]}>{l}</Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
           <View style={styles.gutter}>
-            <Text style={styles.levelName}>{LEVEL_NAMES[level]}</Text>
+            <Text style={styles.levelName}>{levels.map((l) => LEVEL_NAMES[l]).join(' + ')}</Text>
             <Text style={styles.levelHint}>
               Bestimmt, welche Wörter du im Deck und beim Scannen bekommst.
             </Text>
@@ -188,7 +203,7 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.bg },
   content: { paddingTop: Space.lg, paddingBottom: 40, gap: Space.xxl },
   gutter: { paddingHorizontal: Space.gutter, gap: Space.sm },
-  chipRow: { paddingLeft: Space.gutter },
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Space.sm, paddingHorizontal: Space.gutter },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: Space.gutter, gap: Space.sm },
 
   title: { ...Type.title, color: Colors.white },
@@ -205,6 +220,14 @@ const styles = StyleSheet.create({
     color: Colors.white,
   },
 
+  levelChip: {
+    minWidth: HIT, minHeight: HIT, paddingHorizontal: Space.md,
+    alignItems: 'center', justifyContent: 'center',
+    borderRadius: Radius.pill, borderWidth: 1, borderColor: Colors.textMuted,
+  },
+  levelChipOn: { borderColor: Colors.purple, backgroundColor: Colors.purpleBg },
+  levelChipText: { ...Type.meta, color: Colors.textMuted },
+  levelChipTextOn: { color: Colors.white },
   levelName: { ...Type.bodyL, color: Colors.white },
   levelHint: { ...Type.caption, color: Colors.textMuted },
   levelLink: { minHeight: HIT, justifyContent: 'center' },

@@ -43,7 +43,7 @@ import { Eyebrow, GradeRow, LevelBadge, PillButton } from '../../components';
 import { useAuth } from '../../context/auth';
 import { useDeckSession } from '../../hooks/useDeckSession';
 import { examplesFor, grammarLine, wordTypeLabel } from '../../hooks/grammar';
-import { levelOf } from '../../lib/profile';
+import { levelsOf } from '../../lib/profile';
 import type { DeckCard, Grade, WordEnrichment } from '../../types/contracts';
 
 const GRADE_LEARNED: Grade = 2; // swipe right → Gut
@@ -52,8 +52,8 @@ const GRADE_AGAIN: Grade = 0;   // swipe left  → Nochmal
 export default function DeckScreen() {
   const { user, profile } = useAuth();
   const router = useRouter();
-  const level = levelOf(profile);
-  const deck = useDeckSession(user?.id ?? null, level);
+  const levels = levelsOf(profile);
+  const deck = useDeckSession(user?.id ?? null, levels);
   const { height } = useWindowDimensions();
 
   // 264px is the design-spec §6.4 floor; the rest is breathing room on tall

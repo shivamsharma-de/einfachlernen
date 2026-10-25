@@ -25,6 +25,8 @@ export type Profile = {
   display_name: string | null;
   language: string;
   cefr_level: string;
+  /** Selected levels, e.g. ['A1','B1']. Source of truth for the deck (migration 013). */
+  levels: string[];
   xp: number;
   streak: number;
   last_active_date: string | null;

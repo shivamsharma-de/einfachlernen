@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase, Profile } from './supabase';
 import { CEFRLevel } from '../types';
 
@@ -16,12 +17,41 @@ export function levelOf(profile: Profile | null): CEFRLevel {
   return toCEFRLevel(profile?.cefr_level);
 }
 
-export async function updateLevel(userId: string, level: CEFRLevel): Promise<{ error?: string }> {
+/** The learner's selected levels, in CEFR order. Never empty. */
+export function levelsOf(profile: Profile | null): CEFRLevel[] {
+  const chosen = new Set((profile?.levels ?? []).map(toCEFRLevel));
+  const ordered = LEVELS.filter((l) => chosen.has(l));
+  return ordered.length > 0 ? ordered : [levelOf(profile)];
+}
+
+/** Drop today's cached deck sessions. A cached queue was built for the old levels,
+ *  so resuming it after a level change would show cards the learner no longer chose. */
+async function clearDeckSessions(userId: string): Promise<void> {
+  try {
+    const keys = (await AsyncStorage.getAllKeys()).filter((k) => k.startsWith(`deck_session:${userId}:`));
+    if (keys.length > 0) await AsyncStorage.multiRemove(keys);
+  } catch {
+    // Not fatal: a stale session expires at midnight anyway.
+  }
+}
+
+/** Replace the learner's selected levels. Progress is untouched (F2.4). */
+export async function updateLevels(userId: string, levels: CEFRLevel[]): Promise<{ error?: string }> {
+  const ordered = LEVELS.filter((l) => levels.includes(l));
+  if (ordered.length === 0) return { error: 'Wähle mindestens ein Niveau.' };
+
   const { error } = await supabase
     .from('profiles')
-    .update({ cefr_level: level })
+    .update({ levels: ordered, cefr_level: ordered[0] })
     .eq('id', userId);
-  return error ? { error: error.message } : {};
+  if (error) return { error: error.message };
+
+  await clearDeckSessions(userId);
+  return {};
+}
+
+export async function updateLevel(userId: string, level: CEFRLevel): Promise<{ error?: string }> {
+  return updateLevels(userId, [level]);
 }
 
 export async function updateDisplayName(userId: string, name: string): Promise<{ error?: string }> {
@@ -37,11 +67,16 @@ export async function updateDisplayName(userId: string, name: string): Promise<{
  *  knows not to send this user through setup again. */
 export async function completeOnboarding(
   userId: string,
-  level: CEFRLevel,
+  levels: CEFRLevel | CEFRLevel[],
   displayName?: string,
 ): Promise<{ error?: string }> {
+  const list = (Array.isArray(levels) ? levels : [levels]);
+  const ordered = LEVELS.filter((l) => list.includes(l));
+  if (ordered.length === 0) return { error: 'Wähle mindestens ein Niveau.' };
+
   const patch: Record<string, unknown> = {
-    cefr_level: level,
+    levels: ordered,
+    cefr_level: ordered[0],
     onboarding_complete: true,
   };
   const trimmed = displayName?.trim();

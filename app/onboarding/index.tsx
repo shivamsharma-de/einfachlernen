@@ -30,7 +30,7 @@ import { Eyebrow, LevelBadge, PillButton } from '../../components';
 import { useAuth } from '../../context/auth';
 import { CEFR_LEVELS, isMostlyEstimated, useLevelCounts, type LevelCount } from '../../hooks/useLevelCounts';
 import { formatCountDe } from '../../hooks/grammar';
-import { completeOnboarding, levelOf, updateLevel } from '../../lib/profile';
+import { completeOnboarding, levelsOf, updateLevels } from '../../lib/profile';
 import { track } from '../../lib/analytics';
 import type { CEFRLevel } from '../../types';
 
@@ -50,21 +50,27 @@ export default function LevelSelectionScreen() {
   const { counts, loading: countsLoading, error: countsError } = useLevelCounts();
 
   const alreadyOnboarded = profile?.onboarding_complete === true;
-  const [selected, setSelected] = useState<CEFRLevel | null>(
-    alreadyOnboarded ? levelOf(profile) : null,
+  const [selected, setSelected] = useState<CEFRLevel[]>(
+    alreadyOnboarded ? levelsOf(profile) : [],
   );
+
+  const toggle = useCallback((level: CEFRLevel) => {
+    setSelected((prev) =>
+      prev.includes(level) ? prev.filter((l) => l !== level) : [...prev, level],
+    );
+  }, []);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
   const save = useCallback(async () => {
-    if (!user || !selected || saving) return;
+    if (!user || selected.length === 0 || saving) return;
     setSaving(true);
     setSaveError(null);
 
-    // F2.4: changing the level later must not touch progress — `updateLevel`
-    // writes `cefr_level` and nothing else.
+    // F2.4: changing levels later must not touch progress — `updateLevels`
+    // writes the level selection and nothing else.
     const result = alreadyOnboarded
-      ? await updateLevel(user.id, selected)
+      ? await updateLevels(user.id, selected)
       : await completeOnboarding(user.id, selected);
 
     if (result.error) {
@@ -73,7 +79,7 @@ export default function LevelSelectionScreen() {
       return;
     }
 
-    track('onboarding_completed', { level: selected });
+    track('onboarding_completed', { levels: selected.join(',') });
     await refreshProfile();
     router.replace('/(tabs)/deck');
   }, [user, selected, saving, alreadyOnboarded, refreshProfile, router]);
@@ -116,10 +122,10 @@ export default function LevelSelectionScreen() {
             <LevelOption
               key={level}
               level={level}
-              selected={selected === level}
+              selected={selected.includes(level)}
               count={counts?.[level]}
               countsLoading={countsLoading}
-              onPress={() => setSelected(level)}
+              onPress={() => toggle(level)}
             />
           ))}
         </View>
@@ -138,7 +144,7 @@ export default function LevelSelectionScreen() {
         <PillButton
           label={saving ? 'Wird gespeichert…' : alreadyOnboarded ? 'Niveau speichern' : 'Los geht’s'}
           onPress={() => { void save(); }}
-          disabled={!selected || saving || !user}
+          disabled={selected.length === 0 || saving || !user}
           style={styles.cta}
         />
         {!user && (

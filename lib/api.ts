@@ -108,7 +108,7 @@ async function fetchDue(userId: string, limit: number): Promise<{ cards: DeckCar
  */
 export async function buildSession(
   userId: string,
-  level: CEFRLevel,
+  level: CEFRLevel | CEFRLevel[],
   opts?: { maxCards?: number; seed?: number },
 ): Promise<Result<DeckSession>> {
   try {
@@ -129,7 +129,8 @@ export async function buildSession(
     const room = Math.max(0, Math.min(maxCards - due.length, dailyNew));
     let fresh: DeckCard[] = [];
     if (room > 0) {
-      const { data, error } = await supabase.rpc('next_new_words', { p_level: level, p_limit: room });
+      const levels = Array.isArray(level) ? level : [level];
+      const { data, error } = await supabase.rpc('next_new_words', { p_levels: levels, p_limit: room });
       if (error) throw error;
       fresh = ((data ?? []) as DeckWord[]).map((w) => toCard(w, undefined));
     }
@@ -469,9 +470,9 @@ export async function nextDueAt(): Promise<Result<string | null>> {
 export type ThemeSummary = { thema: string; total: number; started: number; due: number };
 
 /** Per-theme totals for one level, computed by the server (migration 012). */
-export async function levelThemes(level: CEFRLevel): Promise<Result<ThemeSummary[]>> {
+export async function levelThemes(level: CEFRLevel | CEFRLevel[]): Promise<Result<ThemeSummary[]>> {
   const { data, error } = await supabase.rpc('level_themes', {
-    p_level: level,
+    p_levels: Array.isArray(level) ? level : [level],
     p_today: localISODate(),
   });
   if (error) return { ok: false, error: germanError(error) };
