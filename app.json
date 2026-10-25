@@ -11,10 +11,13 @@
       "supportsTablet": false,
       "bundleIdentifier": "app.swapo.ios",
       "usesAppleSignIn": true,
-      "usesNonExemptEncryption": false,
       "infoPlist": {
         "NSCameraUsageDescription": "swapo nutzt die Kamera, um Wörter von einer Seite zu scannen.",
-        "NSPhotoLibraryUsageDescription": "swapo nutzt deine Fotos, um Wörter von einer Seite zu scannen."
+        "NSPhotoLibraryUsageDescription": "swapo nutzt deine Fotos, um Wörter von einer Seite zu scannen.",
+        "ITSAppUsesNonExemptEncryption": false
+      },
+      "config": {
+        "usesNonExemptEncryption": false
       }
     },
     "android": {
