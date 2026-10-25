@@ -8,7 +8,8 @@ type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
 function TabIcon({ name, color, focused }: { name: IoniconsName; color: ColorValue; focused: boolean }) {
   return (
     <View style={[styles.iconWrap, focused && styles.iconWrapActive]}>
-      <Ionicons name={name} size={22} color={color} />
+      {/* Tab colours are always hex strings; RN 0.88 widened ColorValue (null, number). */}
+      <Ionicons name={name} size={22} color={typeof color === 'string' ? color : undefined} />
     </View>
   );
 }
