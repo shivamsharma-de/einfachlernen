@@ -1,14 +1,21 @@
 {
   "expo": {
-    "name": "einfachlernen",
-    "slug": "einfachlernen",
+    "name": "swapo",
+    "slug": "swapo",
     "version": "1.0.0",
-    "scheme": "einfachlernen",
+    "scheme": "swapo",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": false,
+      "bundleIdentifier": "app.swapo.ios",
+      "usesAppleSignIn": true,
+      "usesNonExemptEncryption": false,
+      "infoPlist": {
+        "NSCameraUsageDescription": "swapo nutzt die Kamera, um Wörter von einer Seite zu scannen.",
+        "NSPhotoLibraryUsageDescription": "swapo nutzt deine Fotos, um Wörter von einer Seite zu scannen."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -26,7 +33,7 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "einfach lernen nutzt die Kamera, um Wörter von einer Seite zu scannen."
+          "cameraPermission": "swapo nutzt die Kamera, um Wörter von einer Seite zu scannen."
         }
       ],
       [
@@ -36,7 +43,8 @@
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
         }
-      ]
+      ],
+      "expo-apple-authentication"
     ]
   }
 }

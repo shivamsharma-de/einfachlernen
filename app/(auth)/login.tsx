@@ -45,7 +45,7 @@ export default function LoginScreen() {
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
           <LanguageToggle />
           <View style={styles.header}>
-            <Text style={styles.appName}>einfach lernen</Text>
+            <Text style={styles.appName}>swapo</Text>
             <Text style={styles.tagline}>{t('Deutsch lernen, ganz einfach.', 'Learn German, simply.')}</Text>
           </View>
 

@@ -4,12 +4,13 @@
 // Every learner table references profiles(id) ON DELETE CASCADE, so word progress,
 // review history, activity, scans, private words and preferences go with it.
 //
-// Apple: a learner who signed in with Apple also needs their Apple authorization
-// revoked (App Review 5.1.1(v)). That needs the authorization code captured at
-// sign-in and an Apple Sign-in key; it is NOT done here yet and is a blocker for
-// the App Store submission. See docs/runbooks/release.md (when written).
+// Apple: a learner who signed in with Apple has their Apple authorization revoked
+// first (App Review 5.1.1(v)). If revocation fails, the account is KEPT and the
+// request fails, so the learner can retry rather than being left with a live Apple
+// authorization that no longer has an account behind it.
 
 import { createClient } from 'npm:@supabase/supabase-js@^2.45.0';
+import { revokeRefreshToken } from '../_shared/apple.ts';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -42,6 +43,22 @@ Deno.serve(async (req: Request) => {
     authHeader.replace('Bearer ', ''),
   );
   if (userError || !userData.user) return json({ error: 'invalid_token' }, 401);
+
+  // Revoke the Apple authorization before anything is removed. Google accounts have
+  // no stored token and skip straight to deletion.
+  const { data: appleRow } = await admin
+    .from('apple_auth')
+    .select('refresh_token')
+    .eq('user_id', userData.user.id)
+    .maybeSingle();
+
+  if (appleRow?.refresh_token) {
+    const revoked = await revokeRefreshToken(appleRow.refresh_token);
+    if (!revoked.ok) {
+      console.error('apple revoke failed:', revoked.reason);
+      return json({ error: 'apple_revoke_failed' }, 502);
+    }
+  }
 
   const { error: deleteError } = await admin.auth.admin.deleteUser(userData.user.id);
   if (deleteError) {

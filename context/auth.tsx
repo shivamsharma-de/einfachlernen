@@ -151,6 +151,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
       if (error) return { error: error.message };
 
+      // Apple's authorization code expires in about five minutes, so hand it to the
+      // server right away. The server keeps the refresh token needed to revoke this
+      // authorization when the learner deletes their account. A failure here must not
+      // block sign-in; deletion will report it if the token is missing.
+      if (credential.authorizationCode) {
+        const { error: linkError } = await supabase.functions.invoke('apple-link', {
+          body: { authorization_code: credential.authorizationCode },
+        });
+        if (linkError) console.warn('[apple-link] could not store token:', linkError.message);
+      }
+
       // Apple returns the name only on the very first sign-in, so save it now.
       const given = credential.fullName?.givenName ?? '';
       const family = credential.fullName?.familyName ?? '';
