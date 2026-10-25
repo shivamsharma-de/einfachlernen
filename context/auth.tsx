@@ -20,9 +20,11 @@ WebBrowser.maybeCompleteAuthSession();
  * is a confirmed test user created directly via the GoTrue admin API
  * (`email_confirm: true`), not through app UI.
  */
-const DEV_AUTO_LOGIN = __DEV__;
-const DEV_EMAIL = 'dev-tester@einfachlernen.local';
-const DEV_PASSWORD = 'DevTest123!';
+// Credentials come from an untracked env file (.env.local), never from source.
+// Both must be set for auto sign-in to run; otherwise the app stays signed out.
+const DEV_AUTO_LOGIN = __DEV__ && !!process.env.EXPO_PUBLIC_DEV_EMAIL && !!process.env.EXPO_PUBLIC_DEV_PASSWORD;
+const DEV_EMAIL = process.env.EXPO_PUBLIC_DEV_EMAIL ?? '';
+const DEV_PASSWORD = process.env.EXPO_PUBLIC_DEV_PASSWORD ?? '';
 
 interface AuthContextType {
   session: Session | null;
