@@ -2,12 +2,14 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, SafeAreaView, TextInput,
   ActivityIndicator, TouchableOpacity,
+  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Colors, Type, Space, Radius, HIT } from '../../constants/Colors';
 import { Eyebrow, PillButton, StatPair } from '../../components';
 import { useAuth } from '../../context/auth';
 import { levelsOf, updateLevels, updateDisplayName } from '../../lib/profile';
+import { supabase } from '../../lib/supabase';
 import { fetchToday, fetchStreak, DAILY_MINUTES_GOAL } from '../../lib/activity';
 import { stufe } from '../../lib/progress';
 import { CEFRLevel } from '../../types';
@@ -47,6 +49,31 @@ export default function ProfileScreen() {
     })();
     return () => { cancelled = true; };
   }, [user]);
+
+  /** Permanent (App Review 5.1.1(v)). Removes the account and every row keyed to it. */
+  const confirmDelete = useCallback(() => {
+    Alert.alert(
+      'Konto löschen?',
+      'Dein Konto, dein Lernfortschritt und deine Scans werden dauerhaft gelöscht. Das kann nicht rückgängig gemacht werden.',
+      [
+        { text: 'Abbrechen', style: 'cancel' },
+        {
+          text: 'Endgültig löschen',
+          style: 'destructive',
+          onPress: () => {
+            void (async () => {
+              const { error } = await supabase.functions.invoke('delete-account');
+              if (error) {
+                Alert.alert('Löschen fehlgeschlagen', 'Bitte versuche es erneut. Dein Konto wurde nicht gelöscht.');
+                return;
+              }
+              await signOut();
+            })();
+          },
+        },
+      ],
+    );
+  }, [signOut]);
 
   /** Tap a level to add or remove it. At least one must stay selected. */
   const toggleLevel = useCallback(async (target: CEFRLevel) => {
@@ -192,6 +219,7 @@ export default function ProfileScreen() {
 
         <View style={styles.gutter}>
           <PillButton label="Abmelden" variant="ghost" onPress={() => { void signOut(); }} />
+          <PillButton label="Konto löschen" variant="ghost" onPress={confirmDelete} />
         </View>
 
       </ScrollView>
