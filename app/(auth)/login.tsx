@@ -13,9 +13,11 @@ import * as AppleAuthentication from 'expo-apple-authentication';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Type, Space, Radius, HIT } from '../../constants/Colors';
 import { useAuth } from '../../context/auth';
+import { LanguageToggle, useI18n } from '../../lib/i18n';
 
 export default function LoginScreen() {
   const { signInWithGoogle, signInWithApple, signInWithEmail } = useAuth();
+  const { t } = useI18n();
   const [busy, setBusy] = useState(false);
   const [appleAvailable, setAppleAvailable] = useState(false);
   const [showEmail, setShowEmail] = useState(false);
@@ -31,7 +33,7 @@ export default function LoginScreen() {
     setBusy(true);
     const result = await action();
     setBusy(false);
-    if (result.error) Alert.alert('Anmeldung fehlgeschlagen', result.error);
+    if (result.error) Alert.alert(t('Anmeldung fehlgeschlagen', 'Sign-in failed'), result.error);
   }
 
   return (
@@ -41,9 +43,10 @@ export default function LoginScreen() {
         style={{ flex: 1 }}
       >
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+          <LanguageToggle />
           <View style={styles.header}>
             <Text style={styles.appName}>einfach lernen</Text>
-            <Text style={styles.tagline}>Deutsch lernen, ganz einfach.</Text>
+            <Text style={styles.tagline}>{t('Deutsch lernen, ganz einfach.', 'Learn German, simply.')}</Text>
           </View>
 
           <View style={styles.buttons}>
@@ -62,11 +65,11 @@ export default function LoginScreen() {
               onPress={() => { if (!busy) void run(signInWithGoogle); }}
               disabled={busy}
               accessibilityRole="button"
-              accessibilityLabel="Mit Google anmelden"
+              accessibilityLabel={t('Mit Google anmelden', 'Sign in with Google')}
               activeOpacity={0.85}
             >
               <Ionicons name="logo-google" size={18} color={Colors.bg} />
-              <Text style={styles.googleText}>Mit Google anmelden</Text>
+              <Text style={styles.googleText}>{t('Mit Google anmelden', 'Sign in with Google')}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -75,7 +78,7 @@ export default function LoginScreen() {
               accessibilityRole="button"
             >
               <Text style={styles.emailToggleText}>
-                {showEmail ? 'Ausblenden' : 'Mit E-Mail anmelden'}
+                {showEmail ? t('Ausblenden', 'Hide') : t('Mit E-Mail anmelden', 'Sign in with email')}
               </Text>
             </TouchableOpacity>
 
@@ -83,43 +86,46 @@ export default function LoginScreen() {
               <View style={styles.emailBox}>
                 <TextInput
                   style={styles.input}
-                  placeholder="E-Mail"
+                  placeholder={t('E-Mail', 'Email')}
                   placeholderTextColor={Colors.textMuted}
                   autoCapitalize="none"
                   keyboardType="email-address"
                   value={email}
                   onChangeText={setEmail}
-                  accessibilityLabel="E-Mail-Adresse"
+                  accessibilityLabel={t('E-Mail-Adresse', 'Email address')}
                 />
                 <TextInput
                   style={styles.input}
-                  placeholder="Passwort"
+                  placeholder={t('Passwort', 'Password')}
                   placeholderTextColor={Colors.textMuted}
                   secureTextEntry
                   value={password}
                   onChangeText={setPassword}
-                  accessibilityLabel="Passwort"
+                  accessibilityLabel={t('Passwort', 'Password')}
                 />
                 <TouchableOpacity
                   style={[styles.googleBtn, busy && styles.disabled]}
                   disabled={busy}
                   onPress={() => {
                     if (!email.trim() || !password) {
-                      Alert.alert('Fehlende Angaben', 'Bitte E-Mail und Passwort eingeben.');
+                      Alert.alert(
+                        t('Fehlende Angaben', 'Missing details'),
+                        t('Bitte E-Mail und Passwort eingeben.', 'Please enter your email and password.'),
+                      );
                       return;
                     }
                     void run(() => signInWithEmail(email.trim(), password));
                   }}
                   accessibilityRole="button"
                 >
-                  <Text style={styles.googleText}>Anmelden</Text>
+                  <Text style={styles.googleText}>{t('Anmelden', 'Sign in')}</Text>
                 </TouchableOpacity>
               </View>
             )}
           </View>
 
           <Text style={styles.legal}>
-            Mit der Anmeldung stimmst du der Datenschutzerklärung zu.
+            {t('Mit der Anmeldung stimmst du der Datenschutzerklärung zu.', 'By signing in you accept the privacy policy.')}
           </Text>
         </ScrollView>
       </KeyboardAvoidingView>

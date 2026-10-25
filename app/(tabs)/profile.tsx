@@ -10,20 +10,27 @@ import { Eyebrow, PillButton, StatPair } from '../../components';
 import { useAuth } from '../../context/auth';
 import { levelsOf, updateLevels, updateDisplayName } from '../../lib/profile';
 import { supabase } from '../../lib/supabase';
+import { LanguageToggle, useI18n } from '../../lib/i18n';
 import { fetchToday, fetchStreak, DAILY_MINUTES_GOAL } from '../../lib/activity';
 import { stufe } from '../../lib/progress';
 import { CEFRLevel } from '../../types';
 
 const LEVELS: readonly CEFRLevel[] = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 
-const LEVEL_NAMES: Record<CEFRLevel, string> = {
+const LEVEL_NAMES_DE: Record<CEFRLevel, string> = {
   A1: 'Anfänger', A2: 'Grundlagen', B1: 'Mittelstufe',
   B2: 'Gute Mittelstufe', C1: 'Fortgeschritten', C2: 'Muttersprachlich',
+};
+const LEVEL_NAMES_EN: Record<CEFRLevel, string> = {
+  A1: 'Absolute beginner', A2: 'Elementary', B1: 'Intermediate',
+  B2: 'Upper intermediate', C1: 'Advanced', C2: 'Mastery',
 };
 
 export default function ProfileScreen() {
   const router = useRouter();
   const { user, profile, loading, signOut, refreshProfile } = useAuth();
+  const { lang, t } = useI18n();
+  const LEVEL_NAMES = lang === 'de' ? LEVEL_NAMES_DE : LEVEL_NAMES_EN;
 
   const [name, setName] = useState('');
   const [savingLevel, setSavingLevel] = useState(false);
@@ -53,18 +60,24 @@ export default function ProfileScreen() {
   /** Permanent (App Review 5.1.1(v)). Removes the account and every row keyed to it. */
   const confirmDelete = useCallback(() => {
     Alert.alert(
-      'Konto löschen?',
-      'Dein Konto, dein Lernfortschritt und deine Scans werden dauerhaft gelöscht. Das kann nicht rückgängig gemacht werden.',
+      t('Konto löschen?', 'Delete account?'),
+      t(
+        'Dein Konto, dein Lernfortschritt und deine Scans werden dauerhaft gelöscht. Das kann nicht rückgängig gemacht werden.',
+        'Your account, your progress and your scans will be permanently deleted. This cannot be undone.',
+      ),
       [
-        { text: 'Abbrechen', style: 'cancel' },
+        { text: t('Abbrechen', 'Cancel'), style: 'cancel' },
         {
-          text: 'Endgültig löschen',
+          text: t('Endgültig löschen', 'Delete permanently'),
           style: 'destructive',
           onPress: () => {
             void (async () => {
               const { error } = await supabase.functions.invoke('delete-account');
               if (error) {
-                Alert.alert('Löschen fehlgeschlagen', 'Bitte versuche es erneut. Dein Konto wurde nicht gelöscht.');
+                Alert.alert(
+                  t('Löschen fehlgeschlagen', 'Deletion failed'),
+                  t('Bitte versuche es erneut. Dein Konto wurde nicht gelöscht.', 'Please try again. Your account was not deleted.'),
+                );
                 return;
               }
               await signOut();
@@ -73,7 +86,7 @@ export default function ProfileScreen() {
         },
       ],
     );
-  }, [signOut]);
+  }, [signOut, t]);
 
   /** Tap a level to add or remove it. At least one must stay selected. */
   const toggleLevel = useCallback(async (target: CEFRLevel) => {
@@ -107,9 +120,9 @@ export default function ProfileScreen() {
     return (
       <SafeAreaView style={styles.safe}>
         <View style={styles.center}>
-          <Text style={styles.emptyTitle}>Nicht angemeldet</Text>
+          <Text style={styles.emptyTitle}>{t('Nicht angemeldet', 'Not signed in')}</Text>
           <Text style={styles.emptyBody}>
-            Melde dich an, um dein Niveau und deinen Fortschritt zu speichern.
+            {t('Melde dich an, um dein Niveau und deinen Fortschritt zu speichern.', 'Sign in to save your level and progress.')}
           </Text>
         </View>
       </SafeAreaView>
@@ -121,13 +134,14 @@ export default function ProfileScreen() {
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
 
         <View style={styles.gutter}>
-          <Text style={styles.title}>Profil</Text>
-          <Text style={styles.email}>{user.email ?? 'Angemeldet'}</Text>
+          <LanguageToggle />
+          <Text style={styles.title}>{t('Profil', 'Profile')}</Text>
+          <Text style={styles.email}>{user.email ?? t('Angemeldet', 'Signed in')}</Text>
         </View>
 
         {/* Name */}
         <View style={styles.gutter}>
-          <Eyebrow>Name</Eyebrow>
+          <Eyebrow>{t('Name', 'Name')}</Eyebrow>
           <TextInput
             style={styles.input}
             value={name}
@@ -145,7 +159,7 @@ export default function ProfileScreen() {
         <View>
           <View style={styles.gutter}>
             <Eyebrow right={savingLevel ? <ActivityIndicator size="small" color={Colors.textMuted} /> : undefined}>
-              Niveau
+              {t('Niveau', 'Level')}
             </Eyebrow>
           </View>
           <View style={styles.chipRow}>
@@ -169,7 +183,7 @@ export default function ProfileScreen() {
           <View style={styles.gutter}>
             <Text style={styles.levelName}>{levels.map((l) => LEVEL_NAMES[l]).join(' + ')}</Text>
             <Text style={styles.levelHint}>
-              Bestimmt, welche Wörter du im Deck und beim Scannen bekommst.
+              {t('Bestimmt, welche Wörter du im Deck und beim Scannen bekommst.', 'Decides which words you get in the deck and when scanning.')}
             </Text>
             {/* The chips change the level in one tap; the full picker is where
                 the real word counts and the "Wortliste geschätzt" note live. */}
@@ -179,19 +193,19 @@ export default function ProfileScreen() {
               accessibilityRole="link"
               accessibilityLabel="Alle Niveaus mit Wortzahlen ansehen"
             >
-              <Text style={styles.levelLinkText}>Alle Niveaus mit Wortzahlen ansehen</Text>
+              <Text style={styles.levelLinkText}>{t('Alle Niveaus mit Wortzahlen ansehen', 'See all levels with word counts')}</Text>
             </TouchableOpacity>
           </View>
         </View>
 
         {/* Today */}
         <View style={styles.gutter}>
-          <Eyebrow>Heute</Eyebrow>
+          <Eyebrow>{t('Heute', 'Today')}</Eyebrow>
           <View style={styles.card}>
             <View style={styles.statRow}>
-              <StatPair value={streak} label="Tage Serie" color={Colors.gold} />
-              <StatPair value={`${minutes}/${DAILY_MINUTES_GOAL}`} label="Minuten" />
-              <StatPair value={cards} label="Karten" />
+              <StatPair value={streak} label={t('Tage Serie', 'Day streak')} color={Colors.gold} />
+              <StatPair value={`${minutes}/${DAILY_MINUTES_GOAL}`} label={t('Minuten', 'Minutes')} />
+              <StatPair value={cards} label={t('Karten', 'Cards')} />
             </View>
             <View style={styles.divider} />
             <View style={styles.statRow}>
@@ -205,21 +219,21 @@ export default function ProfileScreen() {
 
         {/* Ranks lives inside Profil per design-spec.md §6.6 */}
         <View style={styles.gutter}>
-          <Eyebrow>Mehr</Eyebrow>
+          <Eyebrow>{t('Mehr', 'More')}</Eyebrow>
           <TouchableOpacity
             style={styles.linkRow}
             onPress={() => router.push('/(tabs)/leaderboard')}
             accessibilityRole="button"
-            accessibilityLabel="Rangliste öffnen"
+            accessibilityLabel={t('Rangliste öffnen', 'Open leaderboard')}
           >
-            <Text style={styles.linkLabel}>Rangliste</Text>
+            <Text style={styles.linkLabel}>{t('Rangliste', 'Leaderboard')}</Text>
             <Text style={styles.linkChevron}>›</Text>
           </TouchableOpacity>
         </View>
 
         <View style={styles.gutter}>
-          <PillButton label="Abmelden" variant="ghost" onPress={() => { void signOut(); }} />
-          <PillButton label="Konto löschen" variant="ghost" onPress={confirmDelete} />
+          <PillButton label={t('Abmelden', 'Sign out')} variant="ghost" onPress={() => { void signOut(); }} />
+          <PillButton label={t('Konto löschen', 'Delete account')} variant="ghost" onPress={confirmDelete} />
         </View>
 
       </ScrollView>

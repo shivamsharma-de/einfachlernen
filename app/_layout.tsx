@@ -5,6 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import { AuthProvider, useAuth } from '../context/auth';
+import { I18nProvider } from '../lib/i18n';
 import { flushReviews } from '../lib/api';
 import { Colors, Font } from '../constants/Colors';
 
@@ -53,10 +54,12 @@ export default function RootLayout() {
   if (!ready) return <View style={{ flex: 1, backgroundColor: Colors.bg }} />;
 
   return (
+    <I18nProvider>
     <AuthProvider>
       <ReviewSync />
       <StatusBar style="light" />
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: Colors.bg }, animation: 'slide_from_right' }} />
     </AuthProvider>
+    </I18nProvider>
   );
 }

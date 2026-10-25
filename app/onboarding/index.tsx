@@ -31,6 +31,7 @@ import { useAuth } from '../../context/auth';
 import { CEFR_LEVELS, isMostlyEstimated, useLevelCounts, type LevelCount } from '../../hooks/useLevelCounts';
 import { formatCountDe } from '../../hooks/grammar';
 import { completeOnboarding, levelsOf, updateLevels } from '../../lib/profile';
+import { LanguageToggle, useI18n } from '../../lib/i18n';
 import { track } from '../../lib/analytics';
 import type { CEFRLevel } from '../../types';
 
@@ -46,6 +47,7 @@ const LEVEL_COPY: Record<CEFRLevel, { de: string; en: string }> = {
 
 export default function LevelSelectionScreen() {
   const { user, profile, refreshProfile } = useAuth();
+  const { lang, t } = useI18n();
   const router = useRouter();
   const { counts, loading: countsLoading, error: countsError } = useLevelCounts();
 
@@ -97,19 +99,25 @@ export default function LevelSelectionScreen() {
             accessibilityLabel="Zurück"
           >
             <Ionicons name="chevron-back" size={18} color={Colors.textMuted} />
-            <Text style={styles.backLabel}>Zurück</Text>
+            <Text style={styles.backLabel}>{t('Zurück', 'Back')}</Text>
           </TouchableOpacity>
         ) : (
-          <Eyebrow>Schritt 1 von 1</Eyebrow>
+          <Eyebrow>{t('Schritt 1 von 1', 'Step 1 of 1')}</Eyebrow>
         )}
-        <Text style={styles.title}>Dein Niveau</Text>
+        <LanguageToggle />
+        <Text style={styles.title}>{t('Dein Niveau', 'Your level')}</Text>
         <Text style={styles.subtitle}>
           {alreadyOnboarded
             // F2.4 — say plainly that a change is not a reset.
-            ? 'Ein neues Niveau ändert nur, welche neuen Wörter dazukommen. Dein Fortschritt bleibt erhalten.'
-            : 'Wähle das Niveau, auf dem du lernen willst. Du kannst es später im Profil ändern.'}
+            ? t(
+                'Ein neues Niveau ändert nur, welche neuen Wörter dazukommen. Dein Fortschritt bleibt erhalten.',
+                'A new level only changes which new words you get. Your progress stays.',
+              )
+            : t(
+                'Wähle das Niveau, auf dem du lernen willst. Du kannst es später im Profil ändern.',
+                'Choose the level you want to learn at. You can change it later in your profile.',
+              )}
         </Text>
-        <Text style={styles.subtitleEn}>Choose the level you want to learn at.</Text>
 
         {countsError && (
           <Text style={styles.countsError}>
@@ -132,24 +140,26 @@ export default function LevelSelectionScreen() {
 
         {/* The counts are of released words, not of the raw catalogue, so the
             number on a tile is what the deck can actually serve today. */}
-        <Text style={styles.footnote}>Zahlen zeigen die freigegebenen Wörter je Niveau.</Text>
+        <Text style={styles.footnote}>
+          {t('Zahlen zeigen die freigegebenen Wörter je Niveau.', 'Numbers show the released words per level.')}
+        </Text>
 
         {saveError && (
           <View style={styles.saveError}>
-            <Text style={styles.saveErrorTitle}>Niveau konnte nicht gespeichert werden.</Text>
+            <Text style={styles.saveErrorTitle}>{t('Niveau konnte nicht gespeichert werden.', 'Your level could not be saved.')}</Text>
             <Text style={styles.saveErrorBody}>{saveError}</Text>
           </View>
         )}
 
         <PillButton
-          label={saving ? 'Wird gespeichert…' : alreadyOnboarded ? 'Niveau speichern' : 'Los geht’s'}
+          label={saving ? t('Wird gespeichert…', 'Saving…') : alreadyOnboarded ? t('Niveau speichern', 'Save level') : t('Los geht’s', 'Let’s go')}
           onPress={() => { void save(); }}
           disabled={selected.length === 0 || saving || !user}
           style={styles.cta}
         />
         {!user && (
           <Text style={styles.signedOut}>
-            Melde dich an, um dein Niveau zu speichern.
+            {t('Melde dich an, um dein Niveau zu speichern.', 'Sign in to save your level.')}
           </Text>
         )}
       </ScrollView>
@@ -166,6 +176,7 @@ function LevelOption({ level, selected, count, countsLoading, onPress }: {
   countsLoading: boolean;
   onPress: () => void;
 }) {
+  const { lang, t } = useI18n();
   const copy = LEVEL_COPY[level];
   const estimated = isMostlyEstimated(count);
   // The catalogue is reviewed level by level, so a level can legitimately have
@@ -184,15 +195,15 @@ function LevelOption({ level, selected, count, countsLoading, onPress }: {
         !count
           ? `${level}. ${copy.de}`
           : empty
-            ? `${level}. ${copy.de}. Noch keine Wörter verfügbar`
-            : `${level}. ${copy.de}. ${formatCountDe(count.total)} Wörter`
+            ? `${level}. ${copy.de}. ${t('Noch keine Wörter verfügbar', 'No words available yet')}`
+            : `${level}. ${copy.de}. ${formatCountDe(count.total)} ${t('Wörter', 'words')}`
       }
     >
       <View style={styles.optionHead}>
         <LevelBadge level={level} />
         {count ? (
           <Text style={styles.count}>
-            {empty ? 'Noch keine Wörter' : `${formatCountDe(count.total)} Wörter`}
+            {empty ? t('Noch keine Wörter', 'No words yet') : `${formatCountDe(count.total)} ${t('Wörter', 'words')}`}
           </Text>
         ) : countsLoading ? (
           <View style={styles.countSkeleton} />
@@ -204,13 +215,13 @@ function LevelOption({ level, selected, count, countsLoading, onPress }: {
       </View>
 
       {/* Wraps rather than truncates — German descriptions are long (§8). */}
-      <Text style={styles.optionDe}>{copy.de}</Text>
-      <Text style={styles.optionEn}>{copy.en}</Text>
+      <Text style={styles.optionDe}>{lang === 'de' ? copy.de : copy.en}</Text>
+      <Text style={styles.optionEn}>{lang === 'de' ? copy.en : copy.de}</Text>
 
       {estimated && (
         // F2.5 — most of this level's words were levelled by estimate, not by
         // the ensemble gate. Say so rather than implying exam-grade accuracy.
-        <Text style={styles.estimatedNote}>Wortliste geschätzt</Text>
+        <Text style={styles.estimatedNote}>{t('Wortliste geschätzt', 'Estimated word list')}</Text>
       )}
     </TouchableOpacity>
   );
