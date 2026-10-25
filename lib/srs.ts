@@ -1,3 +1,4 @@
+import { addDaysLocal } from './localdate';
 /** SM-2 lite, extended from the two-outcome version in the architecture doc to
  *  the four grades the deck design uses (design-spec.md §6.4, PRD v2 D7).
  *
@@ -94,9 +95,9 @@ export function formatInterval(days: number): string {
 
 /** ISO date (yyyy-mm-dd) this card is next due, from a base of today. */
 export function nextReviewDate(intervalDays: number, from = new Date()): string {
-  const d = new Date(from);
-  d.setDate(d.getDate() + Math.max(0, intervalDays));
-  return d.toISOString().slice(0, 10);
+  // Local calendar date: a card reviewed at 00:30 in Berlin is due the local
+  // day after, not the UTC day after (lib/localdate.ts).
+  return addDaysLocal(Math.max(0, intervalDays), from);
 }
 
 /** XP for a grade — 2 for "again", 10 otherwise (design-spec.md §6.4). */

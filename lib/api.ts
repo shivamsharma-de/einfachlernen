@@ -22,15 +22,19 @@ import type {
   ScanResponse,
   SRSSnapshot,
   WordEnrichment,
+  WordOrigin,
 } from '../types/contracts';
 import { supabase } from './supabase';
 import { toSRSState, type WordProgressRow } from './deck';
 import { INITIAL_SRS, isMastered, nextReviewDate, previewIntervals, schedule } from './srs';
 import { constrainedShuffle, mulberry32, reinsertIndex } from './shuffle';
+import { localISODate } from './localdate';
+import { Outbox, type SendResult } from './outbox';
+import * as Crypto from 'expo-crypto';
 
 const MAX_SESSION = 30;
 
-const todayISO = () => new Date().toISOString().slice(0, 10);
+const todayISO = () => localISODate();
 const sessionKey = (userId: string) => `deck_session:${userId}:${todayISO()}`;
 
 /** Postgres/network failures reach the learner as German, never as a stack trace. */
@@ -203,31 +207,23 @@ export async function gradeCard(session: DeckSession, grade: Grade): Promise<Dec
   const next = schedule(card.srs, grade);
   const userId = session.id.split(':')[0];
 
-  try {
-    const { error } = await supabase.from('word_progress').upsert(
-      {
-        user_id: userId,
-        word_id: card.word.id,
-        language: 'de',
-        repetitions: next.repetitions,
-        interval_days: next.intervalDays,
-        ease_factor: next.easeFactor,
-        lapses: next.lapses,
-        last_grade: grade,
-        next_review_at: nextReviewDate(next.intervalDays),
-        mastered: isMastered(next),
-        added_via: card.word.origin === 'scan' ? 'scan' : 'level',
-        last_reviewed_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: 'user_id,word_id' },
-    );
-    if (error) throw error;
-  } catch (err) {
-    // Offline or rejected: the learner keeps going. lib/progress.ts holds the
-    // local buffer that reconciles on the next successful call.
-    console.warn('gradeCard upsert failed, continuing locally:', err);
-  }
+  // Persist the grade BEFORE anything is sent. If the app dies or the network
+  // is down, the grade is still in the outbox and goes out on the next flush.
+  await outboxFor(userId).enqueue(Crypto.randomUUID(), {
+    wordId: card.word.id,
+    grade,
+    level: card.word.level,
+    origin: card.word.origin,
+    reviewedAt: new Date().toISOString(),
+    repetitions: next.repetitions,
+    intervalDays: next.intervalDays,
+    easeFactor: next.easeFactor,
+    lapses: next.lapses,
+    nextReview: nextReviewDate(next.intervalDays),
+    mastered: isMastered(next),
+  });
+  // Fire-and-forget: the learner keeps going, and a failure stays queued.
+  void flushReviews(userId);
 
   const queue = [...session.queue];
   const graded: DeckCard = { ...card, srs: next, intervals: previewIntervals(next) };
@@ -340,4 +336,132 @@ export async function updateDailyNewCards(userId: string, n: number): Promise<Re
   void userId;
   void n;
   return notReady<void>();
+}
+
+// ─────────────────────────────────────────────────────────── outbox ──
+
+type ReviewEvent = {
+  wordId: string;
+  grade: Grade;
+  level: CEFRLevel;
+  origin: WordOrigin;
+  reviewedAt: string;
+  repetitions: number;
+  intervalDays: number;
+  easeFactor: number;
+  lapses: number;
+  nextReview: string;
+  mastered: boolean;
+};
+
+const outboxes = new Map<string, Outbox<ReviewEvent>>();
+
+/** One outbox per learner, so one account's queue is never sent under another. */
+function outboxFor(userId: string): Outbox<ReviewEvent> {
+  let box = outboxes.get(userId);
+  if (!box) {
+    box = new Outbox<ReviewEvent>({
+      storage: AsyncStorage,
+      key: `review_outbox:${userId}`,
+    });
+    outboxes.set(userId, box);
+  }
+  return box;
+}
+
+/**
+ * Classify a server error. Data-shape problems (SQLSTATE classes 22, 23, 42)
+ * will never succeed on retry, so they are dropped and reported. Everything else
+ * (network, expired session, server trouble) is kept and retried.
+ */
+function classify(error: { code?: string; message?: string }): SendResult {
+  const code = error.code ?? '';
+  const permanent = /^(22|23|42)/.test(code);
+  return permanent
+    ? { ok: false, retryable: false, reason: code }
+    : { ok: false, retryable: true, reason: error.message ?? 'unknown' };
+}
+
+/** Send every queued review. Safe to call often; concurrent calls share one run. */
+export async function flushReviews(userId: string): Promise<void> {
+  try {
+    const report = await outboxFor(userId).flush(async (item) => {
+      const e = item.payload;
+      const { data, error } = await supabase.rpc('record_review', {
+        p_event_id: item.id,
+        p_word_id: e.wordId,
+        p_grade: e.grade,
+        p_level: e.level,
+        p_origin: e.origin,
+        p_reviewed_at: e.reviewedAt,
+        p_repetitions: e.repetitions,
+        p_interval_days: e.intervalDays,
+        p_ease_factor: e.easeFactor,
+        p_lapses: e.lapses,
+        p_next_review: e.nextReview,
+        p_mastered: e.mastered,
+      });
+      if (error) return classify(error);
+      // `recorded: false` means the server already has this event: success.
+      void data;
+      return { ok: true };
+    });
+    if (report.dropped.length) {
+      console.warn('[reviews] permanently rejected, dropped:', report.dropped);
+    }
+  } catch (err) {
+    console.warn('[reviews] flush failed, will retry:', err);
+  }
+}
+
+/** Grades still waiting to reach the server. For the UI and for tests. */
+export async function pendingReviewCount(userId: string): Promise<number> {
+  return outboxFor(userId).size();
+}
+
+// ─────────────────────────────────────────────────────────── reads ──
+
+export type LevelCount = { total: number; estimated: number };
+
+/**
+ * Catalogue size per level, counted by the server so it is correct beyond
+ * PostgREST's 1,000-row cap. Counts only words the deck serves.
+ */
+export async function countByLevel(): Promise<Result<Record<CEFRLevel, LevelCount>>> {
+  const { data, error } = await supabase.rpc('level_counts');
+  if (error) return { ok: false, error: germanError(error) };
+  const out = {} as Record<CEFRLevel, LevelCount>;
+  for (const row of (data ?? []) as { level: CEFRLevel; total: number; estimated: number }[]) {
+    out[row.level] = { total: Number(row.total), estimated: Number(row.estimated) };
+  }
+  return { ok: true, data: out };
+}
+
+export type LevelProgress = {
+  level: CEFRLevel;
+  total: number;
+  introduced: number;
+  due: number;
+  mastered: number;
+};
+
+/** Per-level progress for the signed-in learner, judged against the device's date. */
+export async function levelProgress(): Promise<Result<LevelProgress[]>> {
+  const { data, error } = await supabase.rpc('level_progress', { p_today: localISODate() });
+  if (error) return { ok: false, error: germanError(error) };
+  const rows = ((data ?? []) as LevelProgress[]).map((r) => ({
+    level: r.level,
+    total: Number(r.total),
+    introduced: Number(r.introduced),
+    due: Number(r.due),
+    mastered: Number(r.mastered),
+  }));
+  return { ok: true, data: rows };
+}
+
+/** The next day anything becomes due, or null when nothing is scheduled. */
+export async function nextDueAt(): Promise<Result<string | null>> {
+  const { data, error } = await supabase.rpc('next_due_at', { p_today: localISODate() });
+  if (error) return { ok: false, error: germanError(error) };
+  return { ok: true, data: (data as string | null) ?? null };
 }
