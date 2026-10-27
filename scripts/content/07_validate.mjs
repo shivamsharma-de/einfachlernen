@@ -34,13 +34,31 @@ function containsLemma(sentence, lemma) {
   return s.includes(stem);
 }
 
+const SEPARABLE = [
+  'zurecht', 'zurück', 'zusammen', 'hinzu', 'heraus', 'hervor', 'herab', 'herauf', 'hinauf', 'herein',
+  'hinein', 'vorbei', 'entgegen', 'voran', 'nieder', 'statt', 'wieder', 'dazu', 'weg', 'los', 'fort',
+  'frei', 'teil', 'dar', 'fest', 'bereit', 'hoch', 'ab', 'an', 'auf', 'aus', 'bei', 'ein', 'mit', 'nach',
+  'vor', 'zu', 'her', 'hin', 'um', 'über', 'unter', 'durch',
+];
+
+/** A separable verb is split in a sentence (er bricht ... zusammen), so its base verb must match instead. */
+function separableBaseMatch(sentence, lemma) {
+  const l = lemma.toLowerCase();
+  const prefix = SEPARABLE.filter((p) => l.startsWith(p) && l.length - p.length >= 5).sort((a, b) => b.length - a.length)[0];
+  if (!prefix) return false;
+  const stem = l.slice(prefix.length).replace(/en$|n$/, '');
+  return stem.length >= 3 && sentence.toLowerCase().includes(stem);
+}
+
 function checkRow(r, wik) {
   const problems = [];
   if (!r.english || r.english.length < 2) problems.push('no english');
   if (!r.example_de) problems.push('no example_de');
   if (!r.example_en) problems.push('no example_en');
   if (r.example_de && ENGLISH_MARKERS.test(r.example_de)) problems.push('english in example_de');
-  if (r.example_de && !containsLemma(r.example_de, r.lemma)) problems.push('example missing headword');
+  if (r.example_de && !containsLemma(r.example_de, r.lemma) && !(r.word_type === 'verb' && separableBaseMatch(r.example_de, r.lemma))) {
+    problems.push('example missing headword');
+  }
 
   if (r.word_type === 'noun') {
     if (!r.article) problems.push('noun without article');

@@ -50,7 +50,13 @@ await stage('08_seed', async () => {
     console.log('  local DB unavailable — every row gets a fresh id');
   }
 
+  // New ids continue after the highest existing sequence for each prefix, so a new word
+  // can never take an id that a stored word already has.
   const seqByPrefix = new Map();
+  for (const id of existing.values()) {
+    const m = /^(de-[a-z0-9]+-[a-z]+)-(\d+)$/.exec(id);
+    if (m) seqByPrefix.set(m[1], Math.max(seqByPrefix.get(m[1]) ?? 0, Number(m[2])));
+  }
   const seen = new Set();
   const sqlRows = [];
 

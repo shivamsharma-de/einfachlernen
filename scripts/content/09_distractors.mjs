@@ -27,7 +27,13 @@ const MODEL = 'claude-haiku-4-5';
 const TARGETS_PER_REQUEST = 10;
 const CANDIDATES = 12;
 const KEEP = 5;
-const OUT = join(STAGE, '09_distractors.jsonl');
+// Pass 2 re-judges only the words pass 1 left with fewer than MIN_TEST distractors, and
+// draws candidates from every level, not just the adjacent ones. Its results go to a
+// separate file; the seed is written from both.
+const PASS2 = String(arg('pass', '1')) === '2';
+const FIRST = join(STAGE, '09_distractors.jsonl');
+const OUT = PASS2 ? join(STAGE, '09_distractors_pass2.jsonl') : FIRST;
+const MIN_TEST = 3;
 const SEED = join(ROOT, 'supabase', 'seeds', '020_word_distractors.sql');
 const POS = ['noun', 'verb', 'adjective', 'adverb'];
 
@@ -40,9 +46,12 @@ export function glossShort(english) {
 const contentWords = (gloss) =>
   new Set(gloss.toLowerCase().split(/[^a-zäöüß]+/).filter((w) => w.length > 2 && w !== 'the' && w !== 'and'));
 
-function loadWords(levels) {
+function loadWords(levels, scope) {
+  // 'served' = what learners can see today (deck_words). 'all' = every dictionary row,
+  // including drafts that have not passed the confidence gate yet.
+  const table = scope === 'all' ? 'de_words' : 'deck_words';
   const sql = `select id, german, coalesce(article,''), word_type, level, coalesce(thema,''), english
-                 from deck_words
+                 from ${table}
                 where level in (${levels.map((l) => `'${l}'`).join(',')})
                   and word_type in (${POS.map((p) => `'${p}'`).join(',')})
                 order by frequency_rank nulls last, id`;
@@ -59,14 +68,14 @@ function loadWords(levels) {
 
 /** Candidates for one target: same part of speech, same or adjacent level, a different and
  *  non-overlapping meaning. Themed words are preferred, then glosses of similar length. */
-export function candidatesFor(target, all) {
+export function candidatesFor(target, all, levelWindow = 1) {
   const li = LEVELS.indexOf(target.level);
   const target_words = contentWords(target.gloss);
   const seen = new Set([target.gloss.toLowerCase()]);
   const pool = [];
   for (const w of all) {
     if (w.id === target.id || w.word_type !== target.word_type) continue;
-    if (Math.abs(LEVELS.indexOf(w.level) - li) > 1) continue;
+    if (Math.abs(LEVELS.indexOf(w.level) - li) > levelWindow) continue;
     if (!w.gloss || seen.has(w.gloss.toLowerCase())) continue;
     const shared = [...contentWords(w.gloss)].some((x) => target_words.has(x));
     if (shared) continue;
@@ -118,9 +127,18 @@ function buildPrompt(targets, candidatesByTarget) {
 }
 
 await stage('09_distractors', async () => {
-  const levels = String(arg('levels', 'A1,A2,B1,B2,C1')).split(',');
-  const all = loadWords(levels);
-  const targets = all.filter((w) => w.gloss);
+  const levels = String(arg('levels', 'A1,A2,B1,B2,C1,C2')).split(',');
+  const scope = String(arg('scope', 'served'));
+  if (!['served', 'all'].includes(scope)) throw new Error('--scope must be served or all');
+  const all = loadWords(levels, scope);
+  let targets = all.filter((w) => w.gloss);
+  if (PASS2) {
+    const firstPass = new Map(readFileSync(FIRST, 'utf8').split('\n').filter(Boolean).map((l) => {
+      const r = JSON.parse(l);
+      return [r.target, r.keep.length];
+    }));
+    targets = targets.filter((t) => (firstPass.get(t.id) ?? 0) < MIN_TEST);
+  }
 
   const done = new Set();
   if (existsSync(OUT)) {
@@ -131,7 +149,7 @@ await stage('09_distractors', async () => {
   const candidatesByTarget = new Map();
   let withEnough = 0;
   for (const t of todo) {
-    const c = candidatesFor(t, all);
+    const c = candidatesFor(t, all, PASS2 ? LEVELS.length : 1);
     candidatesByTarget.set(t.id, c);
     if (c.length >= KEEP) withEnough++;
   }
@@ -141,6 +159,7 @@ await stage('09_distractors', async () => {
   // ~350 input tokens per target (glosses and ids), ~60 output tokens per target.
   const estUsd = (batches.length * 900 * 1 + batches.length * 700 * 5) / 1e6;
 
+  console.log(`  scope           ${scope} (${scope === 'all' ? 'every dictionary row' : 'words learners can see'})`);
   console.log(`  levels          ${levels.join(', ')}`);
   console.log(`  content words   ${targets.length.toLocaleString()}`);
   console.log(`  already done    ${done.size.toLocaleString()}`);
@@ -190,13 +209,18 @@ await stage('09_distractors', async () => {
   }, 'judging');
 
   // Seed the approved pairs. Re-running adds only new pairs (ON CONFLICT DO NOTHING).
-  const lines = readFileSync(OUT, 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l));
-  const values = lines.flatMap((r) => r.keep.map((d) => `  ('${r.target}', '${d}')`));
+  const sources = [...new Set([FIRST, OUT])].filter((f) => existsSync(f));
+  const lines = sources.flatMap((f) => readFileSync(f, 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)));
+  const pairs = new Set(lines.flatMap((r) => r.keep.map((d) => `${r.target}|${d}`)));
+  const values = [...pairs].map((p) => {
+    const [w, d] = p.split('|');
+    return `  ('${w}', '${d}')`;
+  });
   mkdirSync(join(ROOT, 'supabase', 'seeds'), { recursive: true });
   writeFileSync(
     SEED,
     `-- 020_word_distractors.sql — generated by scripts/content/09_distractors.mjs. Do not hand-edit.\n` +
-      `-- ${values.length} approved pairs for ${lines.length} words. Re-run the stage to extend.\n\n` +
+      `-- ${values.length} approved pairs for ${new Set(lines.map((r) => r.target)).size} words. Re-run the stage to extend.\n\n` +
       `INSERT INTO public.word_distractors (word_id, distractor_word_id, approved, source)\n` +
       `SELECT v.w, v.d, true, 'auto' FROM (VALUES\n${values.join(',\n')}\n) AS v(w, d)\n` +
       `ON CONFLICT (word_id, distractor_word_id) DO NOTHING;\n`,
