@@ -236,6 +236,7 @@ export default function HomeScreen() {
                   {t('Lerne zuerst ein paar Karten, dann kannst du dich testen.', 'Study a few cards first, then you can test yourself.')}
                 </Text>
               )}
+              <PillButton label={t('Fortschritt ansehen', 'View progress')} variant="ghost" onPress={() => router.push('/progress')} />
             </View>
           </View>
         )}
