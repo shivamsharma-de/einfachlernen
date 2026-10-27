@@ -137,6 +137,7 @@ DECLARE
   v_correct text;
   v_perm integer[];
   v_correct_index integer;
+  v_item_id uuid;
   v_questions jsonb := '[]'::jsonb;
   v_studied integer;
 BEGIN
@@ -206,9 +207,11 @@ BEGIN
     v_pos := v_pos + 1;
     INSERT INTO public.attempt_items
       (attempt_id, user_id, position, word_id, options, option_word_ids, correct_index)
-    VALUES (v_attempt, uid, v_pos, v_word.id, v_opts, v_ids, v_correct_index);
+    VALUES (v_attempt, uid, v_pos, v_word.id, v_opts, v_ids, v_correct_index)
+    RETURNING id INTO v_item_id;
 
     v_questions := v_questions || jsonb_build_object(
+      'item_id', v_item_id,
       'position', v_pos,
       'word_id', v_word.id,
       'german', v_word.german,

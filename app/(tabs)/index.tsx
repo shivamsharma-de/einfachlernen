@@ -4,7 +4,9 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Colors, Type, Space, Radius, THEMEN } from '../../constants/Colors';
-import { Eyebrow, ProgressRing, StatPair, SectionShelf, WordRow } from '../../components';
+import { Eyebrow, ProgressRing, StatPair, SectionShelf, WordRow, PillButton } from '../../components';
+import { fetchLights, type LightCounts } from '../../lib/test';
+import { useI18n } from '../../lib/i18n';
 import { countByLevel, levelThemes, dueWords, type ThemeSummary } from '../../lib/api';
 import type { DeckWord } from '../../types/contracts';
 import { useAuth } from '../../context/auth';
@@ -67,6 +69,8 @@ export default function HomeScreen() {
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [minutes, setMinutes] = useState(0);
   const [streak, setStreak] = useState(0);
+  const [lights, setLights] = useState<LightCounts | null>(null);
+  const { t } = useI18n();
   const [loading, setLoading] = useState(true);
 
   // Catalogue size per level: server-counted, so it is correct past 1,000 rows.
@@ -99,7 +103,9 @@ export default function HomeScreen() {
     let cancelled = false;
     setLoading(true);
     void (async () => {
-      const [themeResult, dueResult] = await Promise.all([levelThemes(levelKey.split(',') as typeof levels), dueWords()]);
+      const lvls = levelKey.split(',') as typeof levels;
+      const [themeResult, dueResult, lightResult] = await Promise.all([levelThemes(lvls), dueWords(), fetchLights(lvls)]);
+      if (lightResult.ok) setLights(lightResult.data);
       if (cancelled) return;
       setThemes(themeResult.ok ? themeResult.data : []);
       setDue(dueResult.ok ? dueResult.data : []);
@@ -202,6 +208,38 @@ export default function HomeScreen() {
           </View>
         )}
 
+        {/* 4b — Test. Counts come from the traffic light, so it shows only what the learner has studied. */}
+        {!loading && (
+          <View style={styles.gutter}>
+            <View style={styles.testCard}>
+              <Eyebrow>{t('Test dich', 'Test yourself')}</Eyebrow>
+              {lights && lights.studied > 0 ? (
+                <>
+                  <View style={styles.testBar}>
+                    {[
+                      { n: lights.green, c: Colors.green },
+                      { n: lights.yellow, c: Colors.gold },
+                      { n: lights.red, c: Colors.red },
+                      { n: lights.grey, c: Colors.textMuted },
+                    ].map((seg, i) => (
+                      <View key={i} style={{ flex: Math.max(seg.n, 0) / lights.studied, backgroundColor: seg.c, height: 8 }} />
+                    ))}
+                  </View>
+                  <Text style={styles.testLegend}>
+                    {t(`${lights.green} sicher · ${lights.yellow} auf dem Weg · ${lights.red} üben · ${lights.grey} neu`,
+                       `${lights.green} secure · ${lights.yellow} on the way · ${lights.red} to practise · ${lights.grey} new`)}
+                  </Text>
+                  <PillButton label={t('10 Fragen starten', 'Start 10 questions')} variant="ghost" onPress={() => router.push('/test')} />
+                </>
+              ) : (
+                <Text style={styles.testLegend}>
+                  {t('Lerne zuerst ein paar Karten, dann kannst du dich testen.', 'Study a few cards first, then you can test yourself.')}
+                </Text>
+              )}
+            </View>
+          </View>
+        )}
+
         {/* 5 — Themen shelf */}
         {loading ? (
           <ActivityIndicator color={Colors.textMuted} style={styles.loader} />
@@ -248,6 +286,9 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
+  testCard: { gap: Space.md, padding: Space.lg, borderRadius: Radius.card, borderWidth: 1, borderColor: Colors.textMuted },
+  testBar: { flexDirection: 'row', borderRadius: Radius.pill, overflow: 'hidden', backgroundColor: Colors.textMuted },
+  testLegend: { ...Type.caption, color: Colors.textMuted },
   safe: { flex: 1, backgroundColor: Colors.bg },
   scroll: { flex: 1 },
   content: { paddingTop: Space.sm, paddingBottom: 40, gap: Space.xxl },
