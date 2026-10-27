@@ -20,6 +20,9 @@ import { join } from 'node:path';
 import { BANDS, LEVELS, STAGE, arg, readJsonl, stage, writeJsonl } from './_lib.mjs';
 
 const THRESHOLD = Number(arg('threshold', 0.7));
+// C1 lemmas agree less often across the three samples, and the calibration run showed
+// 0.60 still keeps the wrong ones out. Every other level keeps the general threshold.
+const C1_THRESHOLD = Number(arg('c1-threshold', 0.6));
 const idx = (l) => LEVELS.indexOf(l);
 
 function bandOf(rank) {
@@ -122,7 +125,8 @@ await stage('04_gate', async () => {
     confidence = Math.max(0, Math.min(1, confidence));
 
     const agrees = spread <= 1 && bandDelta <= 1;
-    const derived = agrees && confidence >= THRESHOLD;
+    const threshold = LEVELS[finalIdx] === 'C1' ? C1_THRESHOLD : THRESHOLD;
+    const derived = agrees && confidence >= threshold;
 
     return {
       lemma: l.lemma,
@@ -149,7 +153,7 @@ await stage('04_gate', async () => {
   const dist = {};
   for (const r of derived) dist[r.level] = (dist[r.level] ?? 0) + 1;
   console.log(`  ${out.length} lemmas from ${perForm.size} forms`);
-  console.log(`  derived ${derived.length} · estimated ${out.length - derived.length} (threshold ${THRESHOLD})`);
+  console.log(`  derived ${derived.length} · estimated ${out.length - derived.length} (threshold ${THRESHOLD}, C1 ${C1_THRESHOLD})`);
   console.log('  derived by level:', dist);
 
   return {

@@ -113,7 +113,22 @@ const REPAIR_SCHEMA = {
 };
 
 await stage('07_validate', async () => {
-  const rows = readJsonl(join(STAGE, '06_enriched.jsonl'));
+  // Enrichment copies the gate's verdict when it runs, so a later gate change (a new
+  // threshold, for example) would never reach the catalogue. Take the verdict from the
+  // current gate output, keyed by lemma; the enriched text stays as it is.
+  const gate = new Map(readJsonl(join(STAGE, '04_levelled.jsonl')).map((g) => [g.lemma.toLowerCase(), g]));
+  const rows = readJsonl(join(STAGE, '06_enriched.jsonl')).map((r) => {
+    const g = gate.get(r.lemma.toLowerCase());
+    if (!g) return r;
+    return {
+      ...r,
+      level: g.level,
+      level_source: g.level_source,
+      level_confidence: g.level_confidence,
+      review_status: g.review_status,
+      frequency_rank: g.frequency_rank,
+    };
+  });
 
   let wik = null;
   const wikPath = join(SOURCES, 'wiktionary_de.jsonl');

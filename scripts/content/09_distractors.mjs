@@ -25,14 +25,16 @@ import { ROOT, STAGE, LEVELS, arg, ask, chunk, confirmSpend, pmap, requireKey, s
 
 const MODEL = 'claude-haiku-4-5';
 const TARGETS_PER_REQUEST = 10;
-const CANDIDATES = 12;
+const CANDIDATES = Number(arg('candidates', 12));
 const KEEP = 5;
-// Pass 2 re-judges only the words pass 1 left with fewer than MIN_TEST distractors, and
-// draws candidates from every level, not just the adjacent ones. Its results go to a
-// separate file; the seed is written from both.
-const PASS2 = String(arg('pass', '1')) === '2';
-const FIRST = join(STAGE, '09_distractors.jsonl');
-const OUT = PASS2 ? join(STAGE, '09_distractors_pass2.jsonl') : FIRST;
+// Pass 2 re-judges only the words that earlier passes left with fewer than MIN_TEST
+// distractors, and draws candidates from every level. Pass 3 does the same with a wider
+// candidate list (--candidates, default 40), because the judge keeps only the candidates
+// it is sure of and 12 is often too few. Each pass writes its own file; the seed is
+// written from all of them.
+const PASS = Number(arg('pass', 1));
+const FILES = [1, 2, 3, 4].map((p) => join(STAGE, p === 1 ? '09_distractors.jsonl' : `09_distractors_pass${p}.jsonl`));
+const OUT = FILES[PASS - 1];
 const MIN_TEST = 3;
 const SEED = join(ROOT, 'supabase', 'seeds', '020_word_distractors.sql');
 const POS = ['noun', 'verb', 'adjective', 'adverb'];
@@ -132,12 +134,15 @@ await stage('09_distractors', async () => {
   if (!['served', 'all'].includes(scope)) throw new Error('--scope must be served or all');
   const all = loadWords(levels, scope);
   let targets = all.filter((w) => w.gloss);
-  if (PASS2) {
-    const firstPass = new Map(readFileSync(FIRST, 'utf8').split('\n').filter(Boolean).map((l) => {
-      const r = JSON.parse(l);
-      return [r.target, r.keep.length];
-    }));
-    targets = targets.filter((t) => (firstPass.get(t.id) ?? 0) < MIN_TEST);
+  if (PASS > 1) {
+    const kept = new Map();
+    for (const f of FILES.slice(0, PASS - 1).filter(existsSync)) {
+      for (const l of readFileSync(f, 'utf8').split('\n').filter(Boolean)) {
+        const r = JSON.parse(l);
+        kept.set(r.target, (kept.get(r.target) ?? 0) + r.keep.length);
+      }
+    }
+    targets = targets.filter((t) => (kept.get(t.id) ?? 0) < MIN_TEST);
   }
 
   const done = new Set();
@@ -149,7 +154,7 @@ await stage('09_distractors', async () => {
   const candidatesByTarget = new Map();
   let withEnough = 0;
   for (const t of todo) {
-    const c = candidatesFor(t, all, PASS2 ? LEVELS.length : 1);
+    const c = candidatesFor(t, all, PASS > 1 ? LEVELS.length : 1);
     candidatesByTarget.set(t.id, c);
     if (c.length >= KEEP) withEnough++;
   }
@@ -209,7 +214,7 @@ await stage('09_distractors', async () => {
   }, 'judging');
 
   // Seed the approved pairs. Re-running adds only new pairs (ON CONFLICT DO NOTHING).
-  const sources = [...new Set([FIRST, OUT])].filter((f) => existsSync(f));
+  const sources = FILES.filter((f) => existsSync(f));
   const lines = sources.flatMap((f) => readFileSync(f, 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)));
   const pairs = new Set(lines.flatMap((r) => r.keep.map((d) => `${r.target}|${d}`)));
   const values = [...pairs].map((p) => {
