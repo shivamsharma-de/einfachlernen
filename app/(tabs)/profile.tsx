@@ -124,6 +124,11 @@ export default function ProfileScreen() {
           <Text style={styles.emptyBody}>
             {t('Melde dich an, um dein Niveau und deinen Fortschritt zu speichern.', 'Sign in to save your level and progress.')}
           </Text>
+          <PillButton
+            label={t('Anmelden', 'Sign in')}
+            variant="ghost"
+            onPress={() => router.push('/(auth)/login')}
+          />
         </View>
       </SafeAreaView>
     );

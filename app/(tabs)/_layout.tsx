@@ -1,4 +1,5 @@
-import { Tabs } from 'expo-router';
+import { Redirect, Tabs } from 'expo-router';
+import { useAuth } from '../../context/auth';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Type } from '../../constants/Colors';
 import { View, StyleSheet, Platform, type ColorValue } from 'react-native';
@@ -18,6 +19,12 @@ function TabIcon({ name, color, focused }: { name: IoniconsName; color: ColorVal
  *  Phrases becomes "Wörter"; the quiz and the leaderboard stay as routes but
  *  leave the bar: quiz is entered from Home, ranks from Profil. */
 export default function TabLayout() {
+  const { loading, user } = useAuth();
+
+  // The root gate only runs when the app opens. Signing out while the tabs are
+  // showing leaves them mounted, so this sends the learner back to login.
+  if (!loading && !user) return <Redirect href="/(auth)/login" />;
+
   return (
     <Tabs
       screenOptions={{
