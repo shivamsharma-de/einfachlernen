@@ -54,12 +54,12 @@ export default function RootLayout() {
   if (!ready) return <View style={{ flex: 1, backgroundColor: Colors.bg }} />;
 
   return (
-    <I18nProvider>
     <AuthProvider>
+    <I18nProvider>
       <ReviewSync />
       <StatusBar style="light" />
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: Colors.bg }, animation: 'slide_from_right' }} />
-    </AuthProvider>
     </I18nProvider>
+    </AuthProvider>
   );
 }

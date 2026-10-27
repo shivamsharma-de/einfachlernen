@@ -29,6 +29,7 @@ import { toSRSState, type WordProgressRow } from './deck';
 import { INITIAL_SRS, isMastered, nextReviewDate, previewIntervals, schedule } from './srs';
 import { constrainedShuffle, mulberry32, reinsertIndex } from './shuffle';
 import { localISODate } from './localdate';
+import { currentStudySessionId } from './activity';
 import { Outbox, type SendResult } from './outbox';
 import * as Crypto from 'expo-crypto';
 
@@ -222,6 +223,8 @@ export async function gradeCard(session: DeckSession, grade: Grade): Promise<Dec
     lapses: next.lapses,
     nextReview: nextReviewDate(next.intervalDays),
     mastered: isMastered(next),
+    sessionId: currentStudySessionId(),
+    localDay: localISODate(),
   });
   // Fire-and-forget: the learner keeps going, and a failure stays queued.
   void flushReviews(userId);
@@ -353,6 +356,9 @@ type ReviewEvent = {
   lapses: number;
   nextReview: string;
   mastered: boolean;
+  /** The study session this grade belongs to, and the device's local day. */
+  sessionId: string;
+  localDay: string;
 };
 
 const outboxes = new Map<string, Outbox<ReviewEvent>>();
@@ -401,6 +407,8 @@ export async function flushReviews(userId: string): Promise<void> {
         p_lapses: e.lapses,
         p_next_review: e.nextReview,
         p_mastered: e.mastered,
+        p_session_id: e.sessionId,
+        p_local_day: e.localDay,
       });
       if (error) return classify(error);
       // `recorded: false` means the server already has this event: success.

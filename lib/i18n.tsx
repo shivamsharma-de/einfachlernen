@@ -15,6 +15,8 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useS
 import { Text, TouchableOpacity, StyleSheet, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Colors, Type, Space, Radius, HIT } from '../constants/Colors';
+import { useAuth } from '../context/auth';
+import { supabase } from './supabase';
 
 export type Lang = 'de' | 'en';
 
@@ -34,19 +36,38 @@ type I18nValue = {
 const I18nContext = createContext<I18nValue | null>(null);
 
 export function I18nProvider({ children }: { children: React.ReactNode }) {
+  const { user, profile } = useAuth();
   const [lang, setLangState] = useState<Lang>(deviceLang());
 
-  // Restore the learner's own choice once the device storage is read.
+  // Until someone signs in, the device's own choice is used.
   useEffect(() => {
     void AsyncStorage.getItem(STORAGE_KEY).then((stored) => {
       if (stored === 'de' || stored === 'en') setLangState(stored);
     });
   }, []);
 
+  // The signed-in account is the source of truth, so the language follows the learner to a
+  // reinstall or another phone. A profile that has never chosen one takes the device's current
+  // language, which is then saved to the account.
+  useEffect(() => {
+    if (!user || !profile) return;
+    if (profile.ui_lang === 'de' || profile.ui_lang === 'en') {
+      if (profile.ui_lang !== lang) {
+        setLangState(profile.ui_lang);
+        void AsyncStorage.setItem(STORAGE_KEY, profile.ui_lang);
+      }
+    } else {
+      void supabase.from('profiles').update({ ui_lang: lang }).eq('id', user.id);
+    }
+    // Only when the account or its saved language changes, not on every local switch.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, profile?.id, profile?.ui_lang]);
+
   const setLang = useCallback((next: Lang) => {
     setLangState(next);
     void AsyncStorage.setItem(STORAGE_KEY, next);
-  }, []);
+    if (user) void supabase.from('profiles').update({ ui_lang: next }).eq('id', user.id);
+  }, [user]);
 
   const value = useMemo<I18nValue>(
     () => ({ lang, setLang, t: (de, en) => (lang === 'de' ? de : en) }),

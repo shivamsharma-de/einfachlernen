@@ -27,6 +27,8 @@ export type Profile = {
   cefr_level: string;
   /** Selected levels, e.g. ['A1','B1']. Source of truth for the deck (migration 013). */
   levels: string[];
+  /** Interface language saved to the account. null until the learner has chosen one (migration 015). */
+  ui_lang: 'de' | 'en' | null;
   xp: number;
   streak: number;
   last_active_date: string | null;
