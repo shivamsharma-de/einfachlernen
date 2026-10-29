@@ -87,8 +87,19 @@ export async function preparePhoto(uri: string): Promise<string> {
   return out.base64;
 }
 
+/** A page scan can take a while; past this the learner should see an error, not a spinner. */
+const SCAN_TIMEOUT_MS = 60_000;
+
 async function call(body: Record<string, unknown>): Promise<ScanResult> {
-  const { data, error } = await supabase.functions.invoke<ScanResponse>('scan-words', { body });
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<{ data: null; error: Error }>((resolve) => {
+    timer = setTimeout(() => resolve({ data: null, error: new Error('timeout') }), SCAN_TIMEOUT_MS);
+  });
+  const request = supabase.functions.invoke<ScanResponse>('scan-words', { body });
+  const { data, error } = await Promise.race([request, timeout]).finally(() => clearTimeout(timer));
+  if (error?.message === 'timeout') {
+    return { ok: false, error: 'Das dauert zu lange. Prüfe deine Verbindung und versuche es noch einmal.' };
+  }
   if (error) {
     const code = await codeOf(error);
     return { ok: false, error: MESSAGES[code] ?? 'Das hat nicht geklappt. Versuche es noch einmal.' };
