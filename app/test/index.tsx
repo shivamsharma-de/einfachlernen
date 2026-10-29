@@ -1,5 +1,7 @@
 /**
- * Test (plan §3): ten questions, German word, four English meanings.
+ * Test (plan §3): German word, four English meanings. The learner picks how many questions
+ * a round has (10, 20, 50, or every studied word at once), and can start another round at
+ * the same size or pick a different one.
  *
  * The correct answer comes from the snapshot the server froze when the test started,
  * so feedback is instant and works offline. The answer is sent in the background, and a
@@ -18,12 +20,19 @@ import { startTest, submitAnswer, finishTest, fetchLights, type TestStart, type 
 
 type Verdict = { chosen: number; correct: boolean; correctIndex: number };
 
+/** Round sizes. ALL asks the server for more than any learner has studied, so every eligible word is used. */
+const SIZES = [10, 20, 50] as const;
+const ALL = 1000;
+
 export default function TestScreen() {
   const { user, profile } = useAuth();
   const { t } = useI18n();
   const router = useRouter();
   const levels = levelsOf(profile);
+  const levelKey = levels.join(',');
 
+  const [size, setSize] = useState<number | null>(null);
+  const [studied, setStudied] = useState<number | null>(null);
   const [test, setTest] = useState<TestStart | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [index, setIndex] = useState(0);
@@ -33,7 +42,17 @@ export default function TestScreen() {
   const [result, setResult] = useState<{ correct: number; total: number; perfect: boolean } | null>(null);
   const [lights, setLights] = useState<LightCounts | null>(null);
 
-  const load = useCallback(async () => {
+  // How many studied words the learner has, so the setup step can say what "all" means.
+  useEffect(() => {
+    let cancelled = false;
+    void fetchLights(levels).then((r) => {
+      if (!cancelled && r.ok) setStudied(r.data.studied);
+    });
+    return () => { cancelled = true; };
+  }, [levelKey]);
+
+  const start = useCallback(async (count: number) => {
+    setSize(count);
     setError(null);
     setTest(null);
     setIndex(0);
@@ -42,14 +61,20 @@ export default function TestScreen() {
     setXp(0);
     setResult(null);
     setLights(null);
-    const res = await startTest(levels);
+    const res = await startTest(levels, count);
     if (!res.ok) setError(res.error);
     else setTest(res.data);
-    // levels is derived from profile; reloading on profile change is not needed here.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [levels.join(',')]);
+  }, [levelKey]);
 
-  useEffect(() => { void load(); }, [load]);
+  /** Back to the setup step, to choose a different size. */
+  const reset = useCallback(() => {
+    setSize(null);
+    setTest(null);
+    setError(null);
+    setResult(null);
+    setVerdict(null);
+  }, []);
 
   const choose = useCallback((chosen: number) => {
     if (!test || verdict || !user) return;
@@ -78,7 +103,9 @@ export default function TestScreen() {
       ? { correct: done.data.correct, total: done.data.total, perfect: done.data.perfect_bonus }
       : { correct: score, total: test.questions.length, perfect: false });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [test, user, index, score, levels.join(',')]);
+  }, [test, user, index, score, levelKey]);
+
+  const sizeLabel = (n: number) => (n === ALL ? t('Alle', 'All') : String(n));
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -90,14 +117,37 @@ export default function TestScreen() {
         {test && !result && <Text style={styles.counter}>{index + 1} / {test.questions.length}</Text>}
       </View>
 
-      {!test && !error && (
+      {/* Setup: pick a round size */}
+      {size === null && (
+        <ScrollView contentContainerStyle={styles.content}>
+          <Text style={styles.body}>
+            {studied === null
+              ? t('Lade deine Wörter…', 'Loading your words…')
+              : studied === 0
+                ? t('Lerne zuerst ein paar Karten, dann kannst du dich testen.', 'Study a few cards first, then you can test yourself.')
+                : t(`${studied} gelernte Wörter. Wie viele Fragen möchtest du?`,
+                    `${studied} studied words. How many questions do you want?`)}
+          </Text>
+          {SIZES.map((n) => (
+            <PillButton key={n} label={t(`${n} Fragen`, `${n} questions`)} onPress={() => { void start(n); }} />
+          ))}
+          <PillButton
+            label={t('Alle gelernten Wörter, in einer Runde', 'Every studied word, in one round')}
+            variant="ghost"
+            onPress={() => { void start(ALL); }}
+          />
+        </ScrollView>
+      )}
+
+      {size !== null && !test && !error && (
         <View style={styles.center}><ActivityIndicator color={Colors.textMuted} /></View>
       )}
 
-      {error && (
+      {size !== null && error && (
         <View style={styles.center}>
           <Text style={styles.body}>{error}</Text>
-          <PillButton label={t('Erneut versuchen', 'Try again')} onPress={() => { void load(); }} />
+          <PillButton label={t('Erneut versuchen', 'Try again')} onPress={() => { void start(size); }} />
+          <PillButton label={t('Anderer Umfang', 'Different size')} variant="ghost" onPress={reset} />
         </View>
       )}
 
@@ -119,7 +169,8 @@ export default function TestScreen() {
               </Text>
             </View>
           )}
-          <PillButton label={t('Nochmal testen', 'Test again')} onPress={() => { void load(); }} />
+          <PillButton label={t(`Nochmal (${sizeLabel(size!)})`, `Again (${sizeLabel(size!)})`)} onPress={() => { void start(size!); }} />
+          <PillButton label={t('Anderer Umfang', 'Different size')} variant="ghost" onPress={reset} />
           <PillButton label={t('Fertig', 'Done')} variant="ghost" onPress={() => router.back()} />
         </ScrollView>
       )}
