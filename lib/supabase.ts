@@ -29,6 +29,8 @@ export type Profile = {
   levels: string[];
   /** Interface language saved to the account. null until the learner has chosen one (migration 015). */
   ui_lang: 'de' | 'en' | null;
+  /** When the learner agreed to send scanned photos for word extraction. null = not agreed. */
+  scan_consent_at: string | null;
   xp: number;
   streak: number;
   last_active_date: string | null;

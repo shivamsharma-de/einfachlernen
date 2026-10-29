@@ -1,29 +1,35 @@
+/**
+ * Scan (scanner v2). The page photo goes to the server, which asks the configured model for the
+ * words. The learner reviews the list, ticks what they want, and the chosen words go into their
+ * own dictionary (and, for catalogue words, the deck).
+ */
 import React, { useCallback, useRef, useState } from 'react';
 import {
   View, Text, StyleSheet, SafeAreaView, ScrollView,
   TouchableOpacity, ActivityIndicator,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Colors, Type, Space, Radius, HIT, ARTICLE_COLOR } from '../../constants/Colors';
 import { Eyebrow, LevelBadge, PillButton } from '../../components';
 import { useAuth } from '../../context/auth';
 import { levelsOf } from '../../lib/profile';
-import { preparePhoto, scanImage, ScanOutcome } from '../../lib/ocr';
-import { addToDeck } from '../../lib/deck';
-import { Word } from '../../types';
+import {
+  preparePhoto, scanPhoto, importScanWords, setScanConsent,
+  type ScanOutcome, type Candidate, type CatalogueHit,
+} from '../../lib/ocr';
+import type { CEFRLevel } from '../../types/index';
 
-type Phase = 'idle' | 'busy' | 'done';
+type Phase = 'idle' | 'busy' | 'review' | 'saved';
 
-/** Word type → the German group heading used in design-spec.md §6.2. */
-const GROUPS: { key: string; label: string; types: string[] }[] = [
-  { key: 'nomen', label: 'Nomen', types: ['noun'] },
-  { key: 'verben', label: 'Verben', types: ['verb'] },
-  { key: 'adjektive', label: 'Adjektive', types: ['adjective', 'adverb'] },
-];
+/** Selection keys: catalogue words by id, candidates by their lower-case German. */
+const candidateKey = (c: Candidate) => `c:${c.german.toLowerCase()}`;
+const catalogueKey = (w: CatalogueHit) => `m:${w.id}`;
 
 export default function ScanScreen() {
-  const { user, profile } = useAuth();
-  // Scan relevance is 'at or above' a floor; with several levels, the lowest is that floor.
+  const { user, profile, refreshProfile } = useAuth();
+  const router = useRouter();
+  // The scan keeps words above the learner's lowest selected level.
   const level = levelsOf(profile)[0];
 
   const [permission, requestPermission] = useCameraPermissions();
@@ -33,64 +39,87 @@ export default function ScanScreen() {
   const [outcome, setOutcome] = useState<ScanOutcome | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
-  const [imported, setImported] = useState<number | null>(null);
+  const [savedCount, setSavedCount] = useState(0);
+  const [consentBusy, setConsentBusy] = useState(false);
 
   const capture = useCallback(async () => {
     if (!cameraRef.current) return;
     setError(null);
     setPhase('busy');
-
     try {
       const photo = await cameraRef.current.takePictureAsync({ quality: 1, skipProcessing: true });
-
       if (!photo?.uri) {
         setError('Aufnahme fehlgeschlagen.');
         setPhase('idle');
         return;
       }
-
       const base64 = await preparePhoto(photo.uri);
-      const result = await scanImage(base64, level);
+      const result = await scanPhoto(base64, level);
       if (!result.ok) {
         setError(result.error);
         setPhase('idle');
         return;
       }
-
       setOutcome(result.data);
-      // Every match starts checked (§6.2).
-      setSelected(new Set(result.data.words.map(w => w.id)));
-      setImported(null);
-      setPhase('done');
+      // Everything the model offers starts ticked; the learner unticks what they do not want.
+      setSelected(new Set([
+        ...result.data.catalogue.map(catalogueKey),
+        ...result.data.candidates.map(candidateKey),
+      ]));
+      setPhase('review');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unbekannter Fehler.');
       setPhase('idle');
     }
   }, [level]);
 
-  const toggle = useCallback((id: string) => {
-    setSelected(prev => {
+  const toggle = useCallback((key: string) => {
+    setSelected((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
       return next;
     });
   }, []);
 
-  const importSelected = useCallback(async () => {
-    if (!user || selected.size === 0) return;
-    const added = await addToDeck(user.id, [...selected]);
-    setImported(added);
-  }, [user, selected]);
+  const save = useCallback(async () => {
+    if (!outcome) return;
+    const catalogueIds = outcome.catalogue.filter((w) => selected.has(catalogueKey(w))).map((w) => w.id);
+    const candidates = outcome.candidates.filter((c) => selected.has(candidateKey(c)));
+    if (catalogueIds.length + candidates.length === 0) return;
 
-  const reset = useCallback(() => {
+    setError(null);
+    setPhase('busy');
+    const result = await importScanWords(outcome.scanId, catalogueIds, candidates);
+    if (!result.ok) {
+      setError(result.error);
+      setPhase('review');
+      return;
+    }
+    setSavedCount(catalogueIds.length + candidates.length);
+    setPhase('saved');
+  }, [outcome, selected]);
+
+  const grant = useCallback(async () => {
+    if (!user) return;
+    setConsentBusy(true);
+    const result = await setScanConsent(user.id, true);
+    setConsentBusy(false);
+    if (!result.ok) {
+      setError(result.error);
+      return;
+    }
+    await refreshProfile();
+  }, [user, refreshProfile]);
+
+  const again = useCallback(() => {
     setPhase('idle');
     setOutcome(null);
     setSelected(new Set());
-    setImported(null);
     setError(null);
   }, []);
 
-  // ─── Permission gates ─────────────────────────────────────────────────────
+  // ─── Permissions and consent ─────────────────────────────────────────────
 
   if (!permission) {
     return (
@@ -105,134 +134,180 @@ export default function ScanScreen() {
       <SafeAreaView style={styles.safe}>
         <View style={styles.center}>
           <Text style={styles.emptyTitle}>Kamera benötigt</Text>
-          <Text style={styles.emptyBody}>
-            Erlaube den Kamerazugriff, um Wörter von einer Seite zu scannen.
-          </Text>
+          <Text style={styles.emptyBody}>Erlaube den Kamerazugriff, um Wörter von einer Seite zu scannen.</Text>
           <PillButton label="Zugriff erlauben" onPress={() => { void requestPermission(); }} />
         </View>
       </SafeAreaView>
     );
   }
 
-  // ─── Harvest ──────────────────────────────────────────────────────────────
-
-  if (phase === 'done' && outcome) {
-    const grouped = GROUPS
-      .map(g => ({ ...g, words: outcome.words.filter(w => g.types.includes(w.word_type)) }))
-      .filter(g => g.words.length > 0);
-
-    const others = outcome.words.filter(
-      w => !GROUPS.some(g => g.types.includes(w.word_type)),
-    );
-
+  if (profile && !profile.scan_consent_at) {
     return (
       <SafeAreaView style={styles.safe}>
-        <ScrollView contentContainerStyle={styles.harvest} showsVerticalScrollIndicator={false}>
-          <View style={styles.gutter}>
-            <Text style={styles.title}>Gefundene Wörter</Text>
-            <Text style={styles.status}>
-              {outcome.totalDetected} Wörter erkannt · {outcome.words.length} über {level}
-              {outcome.atOrBelowLevel > 0 && ` · ${outcome.atOrBelowLevel} auf deinem Niveau`}
-              {outcome.unmatched > 0 && ` · ${outcome.unmatched} unbekannt`}
-            </Text>
-          </View>
+        <View style={styles.center}>
+          <Text style={styles.emptyTitle}>Fotos auswerten</Text>
+          <Text style={styles.emptyBody}>
+            Zum Erkennen der Wörter wird dein Foto an einen KI-Dienst gesendet. Gespeichert werden nur die
+            erkannten Wörter, nicht das Foto. Du kannst deine Zustimmung jederzeit widerrufen.
+          </Text>
+          {error ? <Text style={styles.error}>{error}</Text> : null}
+          {consentBusy
+            ? <ActivityIndicator color={Colors.textMuted} />
+            : <PillButton label="Zustimmen und scannen" onPress={() => { void grant(); }} />}
+        </View>
+      </SafeAreaView>
+    );
+  }
 
-          {outcome.words.length === 0 && (
-            <View style={styles.gutter}>
-              <Text style={styles.emptyBody}>
-                Nichts über deinem Niveau gefunden. Versuche eine andere Seite.
-              </Text>
-            </View>
+  // ─── Review ──────────────────────────────────────────────────────────────
+
+  if (phase === 'review' && outcome) {
+    const chosen = selected.size;
+    return (
+      <SafeAreaView style={styles.safe}>
+        <ScrollView contentContainerStyle={styles.review} showsVerticalScrollIndicator={false}>
+          <Text style={styles.title}>Gefundene Wörter</Text>
+          <Text style={styles.status}>
+            {outcome.totalDetected} erkannt · {outcome.candidates.length} neu für dich
+            {outcome.catalogue.length > 0 && ` · ${outcome.catalogue.length} im Wörterbuch`}
+            {outcome.alreadyYours > 0 && ` · ${outcome.alreadyYours} schon in deinem Wörterbuch`}
+            {outcome.belowLevel > 0 && ` · ${outcome.belowLevel} auf deinem Niveau`}
+          </Text>
+
+          {error ? <Text style={styles.error}>{error}</Text> : null}
+
+          {outcome.candidates.length > 0 && (
+            <>
+              <Eyebrow>Neu für dein Wörterbuch</Eyebrow>
+              {outcome.candidates.map((c) => {
+                const key = candidateKey(c);
+                return (
+                  <WordCardRow
+                    key={key}
+                    on={selected.has(key)}
+                    onPress={() => toggle(key)}
+                    article={c.article}
+                    german={c.german}
+                    english={c.english}
+                    level={c.level}
+                    example={c.example_de}
+                    exampleEn={c.example_en}
+                    synonyms={c.synonyms}
+                    badge={c.uncertain ? 'KI · unsicher' : 'KI'}
+                  />
+                );
+              })}
+            </>
           )}
 
-          {[...grouped, ...(others.length ? [{ key: 'weitere', label: 'Weitere', words: others }] : [])]
-            .map(group => (
-              <View key={group.key} style={styles.gutter}>
-                <Eyebrow>{group.label}</Eyebrow>
-                {group.words.map(word => (
-                  <ScanRow
-                    key={word.id}
-                    word={word}
-                    checked={selected.has(word.id)}
-                    onToggle={() => toggle(word.id)}
+          {outcome.catalogue.length > 0 && (
+            <>
+              <Eyebrow>Im Wörterbuch</Eyebrow>
+              {outcome.catalogue.map((w) => {
+                const key = catalogueKey(w);
+                return (
+                  <WordCardRow
+                    key={key}
+                    on={selected.has(key)}
+                    onPress={() => toggle(key)}
+                    article={w.article}
+                    german={w.german}
+                    english={w.english}
+                    level={w.level}
+                    example={w.example_de ?? ''}
+                    exampleEn={w.example_en ?? ''}
+                    synonyms={w.synonyms}
                   />
-                ))}
-              </View>
-            ))}
+                );
+              })}
+            </>
+          )}
 
-          <View style={styles.gutter}>
-            {imported === null ? (
-              <PillButton
-                label={`${selected.size} Wörter ins Deck importieren`}
-                onPress={() => { void importSelected(); }}
-                disabled={selected.size === 0}
-              />
-            ) : (
-              <PillButton label={`${imported} Wörter im Deck ✓`} variant="light" disabled />
-            )}
-            <View style={{ height: Space.md }} />
-            <PillButton label="Neu scannen" variant="ghost" onPress={reset} />
-          </View>
+          {outcome.candidates.length === 0 && outcome.catalogue.length === 0 && (
+            <Text style={styles.emptyBody}>Keine neuen Wörter über deinem Niveau.</Text>
+          )}
+
+          <PillButton
+            label={chosen > 0 ? `${chosen} Wörter speichern` : 'Keine Wörter gewählt'}
+            onPress={() => { if (chosen > 0) void save(); }}
+          />
+          <PillButton label="Anderes Foto" variant="ghost" onPress={again} />
         </ScrollView>
       </SafeAreaView>
     );
   }
 
-  // ─── Viewfinder ───────────────────────────────────────────────────────────
+  // ─── Saved ───────────────────────────────────────────────────────────────
+
+  if (phase === 'saved') {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <View style={styles.center}>
+          <Text style={styles.emptyTitle}>{savedCount} Wörter gespeichert</Text>
+          <Text style={styles.emptyBody}>Sie stehen in deinem Wörterbuch und im Deck.</Text>
+          <PillButton label="Mein Wörterbuch" onPress={() => router.push('/my-words')} />
+          <PillButton label="Weiter scannen" variant="ghost" onPress={again} />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // ─── Camera ──────────────────────────────────────────────────────────────
 
   return (
     <SafeAreaView style={styles.safe}>
-      <View style={styles.viewfinderWrap}>
+      <View style={styles.cameraWrap}>
         <CameraView ref={cameraRef} style={StyleSheet.absoluteFill} facing="back" />
-        <View style={styles.frame} pointerEvents="none" />
-        <View style={styles.overlay} pointerEvents="box-none">
-          <Text style={styles.statusPill}>
-            {phase === 'busy' ? 'Erkenne Wörter…' : 'Bereit'}
-          </Text>
-        </View>
-      </View>
-
-      <View style={styles.controls}>
-        {error && <Text style={styles.error}>{error}</Text>}
-        {phase === 'busy' ? (
-          <ActivityIndicator color={Colors.purple} />
-        ) : (
-          <PillButton label="Scannen" variant="light" onPress={() => { void capture(); }} />
+        {phase === 'busy' && (
+          <View style={styles.busy}>
+            <ActivityIndicator color={Colors.white} />
+            <Text style={styles.busyText}>Erkenne Wörter…</Text>
+          </View>
         )}
+      </View>
+      <View style={styles.controls}>
+        {error ? <Text style={styles.error}>{error}</Text> : <Text style={styles.hint}>Halte die Seite ruhig ins Bild.</Text>}
+        <PillButton label="Foto aufnehmen" onPress={() => { if (phase === 'idle') void capture(); }} />
+        <PillButton label="Mein Wörterbuch" variant="ghost" onPress={() => router.push('/my-words')} />
       </View>
     </SafeAreaView>
   );
 }
 
-function ScanRow({ word, checked, onToggle }: {
-  word: Word; checked: boolean; onToggle: () => void;
-}) {
-  const meta = word.article
-    ? `${word.article} · ${typeof word.forms?.plural === 'string' ? word.forms.plural : '—'}`
-    : word.word_type;
+// ─── Row ─────────────────────────────────────────────────────────────────────
 
+function WordCardRow(props: {
+  on: boolean; onPress: () => void; article: string | null; german: string; english: string;
+  level: CEFRLevel; example: string; exampleEn: string; synonyms: string[]; badge?: string;
+}) {
   return (
     <TouchableOpacity
-      style={styles.row}
-      onPress={onToggle}
+      onPress={props.onPress}
       accessibilityRole="checkbox"
-      accessibilityState={{ checked }}
-      accessibilityLabel={`${word.german}, ${word.english}`}
+      accessibilityState={{ checked: props.on }}
+      accessibilityLabel={`${props.article ? props.article + ' ' : ''}${props.german}, ${props.english}`}
+      style={[styles.row, props.on && styles.rowOn]}
+      activeOpacity={0.85}
     >
-      <View style={[styles.checkbox, checked && styles.checkboxOn]}>
-        {checked && <Text style={styles.checkmark}>✓</Text>}
+      <View style={[styles.box, props.on && styles.boxOn]}>
+        {props.on && <Text style={styles.tick}>✓</Text>}
       </View>
-      <View style={styles.rowMain}>
-        <View style={styles.germanLine}>
-          {word.article && (
-            <Text style={[styles.article, { color: ARTICLE_COLOR[word.article] }]}>{word.article}</Text>
-          )}
-          <Text style={styles.german}>{word.german}</Text>
+      <View style={styles.rowBody}>
+        <View style={styles.rowTop}>
+          {props.article ? <Text style={[styles.article, { color: ARTICLE_COLOR[props.article as keyof typeof ARTICLE_COLOR] }]}>{props.article}</Text> : null}
+          <Text style={styles.german}>{props.german}</Text>
+          <LevelBadge level={props.level} />
+          {props.badge ? <Text style={styles.badge}>{props.badge}</Text> : null}
         </View>
-        <Text style={styles.english}>{word.english}</Text>
-        <Text style={styles.meta}>{meta}</Text>
+        <Text style={styles.english}>{props.english}</Text>
+        {props.example ? <Text style={styles.example}>{props.example}</Text> : null}
+        {props.exampleEn ? <Text style={styles.exampleEn}>{props.exampleEn}</Text> : null}
+        {props.synonyms.length > 0 && (
+          <View style={styles.chips}>
+            {props.synonyms.map((s) => <Text key={s} style={styles.chip}>{s}</Text>)}
+          </View>
+        )}
       </View>
-      <LevelBadge level={word.level} />
     </TouchableOpacity>
   );
 }
@@ -240,62 +315,39 @@ function ScanRow({ word, checked, onToggle }: {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.bg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: Space.gutter, gap: Space.md },
-  gutter: { paddingHorizontal: Space.gutter, gap: Space.sm },
-  harvest: { paddingTop: Space.lg, paddingBottom: 40, gap: Space.xl },
-
-  title: { ...Type.title, color: Colors.white },
-  status: { ...Type.meta, color: Colors.textMuted },
-
-  viewfinderWrap: { flex: 1, margin: Space.gutter, borderRadius: Radius.card, overflow: 'hidden', backgroundColor: Colors.black },
-  frame: {
-    position: 'absolute',
-    top: 0, left: 0, right: 0, bottom: 0,
-    margin: Space.xl,
-    borderWidth: 2,
-    borderColor: Colors.purple,
-    borderRadius: Radius.tile,
-  },
-  overlay: {
-    position: 'absolute',
-    top: 0, left: 0, right: 0, bottom: 0,
-    alignItems: 'center', justifyContent: 'flex-end', padding: Space.xl,
-  },
-  statusPill: {
-    ...Type.eyebrow,
-    color: Colors.black,
-    backgroundColor: Colors.white,
-    paddingHorizontal: Space.md,
-    paddingVertical: 6,
-    borderRadius: Radius.pill,
-    overflow: 'hidden',
-  },
-
-  controls: { padding: Space.gutter, gap: Space.md, minHeight: 96, justifyContent: 'center' },
-  error: { ...Type.caption, color: Colors.red, textAlign: 'center' },
-
-  row: {
-    minHeight: HIT,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Space.md,
-    paddingVertical: Space.md,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: Colors.border,
-  },
-  checkbox: {
-    width: 22, height: 22, borderRadius: Radius.chip,
-    borderWidth: 1.5, borderColor: Colors.border,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  checkboxOn: { backgroundColor: Colors.purple, borderColor: Colors.purple },
-  checkmark: { ...Type.meta, color: Colors.black },
-  rowMain: { flex: 1, gap: 2 },
-  germanLine: { flexDirection: 'row', alignItems: 'baseline', gap: 6, flexWrap: 'wrap' },
-  article: { ...Type.meta },
-  german: { ...Type.word, color: Colors.white, flexShrink: 1 },
-  english: { ...Type.caption, color: Colors.textMuted },
-  meta: { ...Type.meta, color: Colors.textMuted },
-
-  emptyTitle: { ...Type.title, fontSize: 24, lineHeight: 28, color: Colors.white, textAlign: 'center' },
+  emptyTitle: { ...Type.title, color: Colors.white, textAlign: 'center' },
   emptyBody: { ...Type.body, color: Colors.textMuted, textAlign: 'center' },
+  error: { ...Type.caption, color: Colors.red, textAlign: 'center' },
+  hint: { ...Type.caption, color: Colors.textMuted, textAlign: 'center' },
+  cameraWrap: { flex: 1, overflow: 'hidden', borderRadius: Radius.card, margin: Space.gutter, backgroundColor: Colors.surface },
+  busy: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center', gap: Space.sm, backgroundColor: Colors.bg },
+  busyText: { ...Type.bodyL, color: Colors.white },
+  controls: { padding: Space.gutter, gap: Space.md },
+  review: { padding: Space.gutter, gap: Space.md, paddingBottom: 40 },
+  title: { ...Type.title, color: Colors.white },
+  status: { ...Type.caption, color: Colors.textMuted },
+  row: {
+    flexDirection: 'row', gap: Space.md, padding: Space.md, minHeight: HIT,
+    borderRadius: Radius.card, borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.surface,
+  },
+  rowOn: { borderColor: Colors.purple },
+  box: {
+    width: 22, height: 22, borderRadius: 6, borderWidth: 1.5, borderColor: Colors.textMuted,
+    alignItems: 'center', justifyContent: 'center', marginTop: 2,
+  },
+  boxOn: { backgroundColor: Colors.purple, borderColor: Colors.purple },
+  tick: { color: Colors.black, fontWeight: '700' },
+  rowBody: { flex: 1, gap: 4 },
+  rowTop: { flexDirection: 'row', alignItems: 'baseline', flexWrap: 'wrap', gap: Space.sm },
+  article: { ...Type.word, fontWeight: '600' },
+  german: { ...Type.word, color: Colors.white },
+  badge: { ...Type.meta, color: Colors.purple },
+  english: { ...Type.bodyL, color: Colors.white },
+  example: { ...Type.body, color: Colors.white },
+  exampleEn: { ...Type.caption, color: Colors.textMuted },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: Space.xs },
+  chip: {
+    ...Type.meta, color: Colors.textMuted, paddingHorizontal: Space.sm, paddingVertical: 2,
+    borderRadius: Radius.pill, borderWidth: 1, borderColor: Colors.border,
+  },
 });
