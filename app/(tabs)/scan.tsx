@@ -8,7 +8,7 @@ import { Colors, Type, Space, Radius, HIT, ARTICLE_COLOR } from '../../constants
 import { Eyebrow, LevelBadge, PillButton } from '../../components';
 import { useAuth } from '../../context/auth';
 import { levelsOf } from '../../lib/profile';
-import { scanImage, ScanOutcome } from '../../lib/ocr';
+import { preparePhoto, scanImage, ScanOutcome } from '../../lib/ocr';
 import { addToDeck } from '../../lib/deck';
 import { Word } from '../../types';
 
@@ -41,19 +41,16 @@ export default function ScanScreen() {
     setPhase('busy');
 
     try {
-      const photo = await cameraRef.current.takePictureAsync({
-        base64: true,
-        quality: 0.6,
-        skipProcessing: true,
-      });
+      const photo = await cameraRef.current.takePictureAsync({ quality: 1, skipProcessing: true });
 
-      if (!photo?.base64) {
+      if (!photo?.uri) {
         setError('Aufnahme fehlgeschlagen.');
         setPhase('idle');
         return;
       }
 
-      const result = await scanImage(photo.base64, level);
+      const base64 = await preparePhoto(photo.uri);
+      const result = await scanImage(base64, level);
       if (!result.ok) {
         setError(result.error);
         setPhase('idle');

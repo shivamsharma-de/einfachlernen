@@ -1,5 +1,18 @@
+import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 import { supabase } from './supabase';
 import { CEFRLevel, Word } from '../types';
+
+/** Shrink a camera photo before upload: 1600px wide, JPEG 0.7, returned as base64.
+ *  Full-size phone photos can exceed the 5MB vision limit; a page stays legible at this size. */
+export async function preparePhoto(uri: string): Promise<string> {
+  const out = await manipulateAsync(uri, [{ resize: { width: 1600 } }], {
+    compress: 0.7,
+    format: SaveFormat.JPEG,
+    base64: true,
+  });
+  if (!out.base64) throw new Error('Foto konnte nicht verarbeitet werden.');
+  return out.base64;
+}
 
 /** The OCR boundary design-spec.md §6.2 asked for: one function that takes an
  *  image and returns recognised words, so the engine can be swapped without the

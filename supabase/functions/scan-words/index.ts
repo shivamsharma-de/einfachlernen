@@ -12,10 +12,8 @@
 
 import Anthropic from 'npm:@anthropic-ai/sdk@^0.70.0';
 import { z } from 'npm:zod@^3.23.8';
-import { zodOutputFormat } from 'npm:@anthropic-ai/sdk@^0.70.0/helpers/zod';
 import { createClient } from 'npm:@supabase/supabase-js@^2.45.0';
 
-const MODEL = 'claude-opus-5';
 const LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'] as const;
 /** Anthropic rejects images over 5MB; base64 inflates by ~4/3. */
 const MAX_BASE64_CHARS = 6_500_000;
@@ -37,6 +35,30 @@ const ScanSchema = z.object({
   })),
   total_detected: z.number().describe('Total German words visible, including ones not listed.'),
 });
+
+/** The same shape as ScanSchema, as the JSON Schema the API enforces on the reply. */
+const SCAN_JSON_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['words', 'total_detected'],
+  properties: {
+    words: {
+      type: 'array',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['surface', 'lemma', 'type', 'article'],
+        properties: {
+          surface: { type: 'string' },
+          lemma: { type: 'string' },
+          type: { type: 'string', enum: ['noun', 'verb', 'adjective', 'adverb', 'other'] },
+          article: { anyOf: [{ type: 'string', enum: ['der', 'die', 'das'] }, { type: 'null' }] },
+        },
+      },
+    },
+    total_detected: { type: 'integer' },
+  },
+};
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -60,9 +82,12 @@ Deno.serve(async (req: Request) => {
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
   const anthropicKey = Deno.env.get('ANTHROPIC_API_KEY');
+  // Model IDs come from the environment, never from this file (CLAUDE.md).
+  const model = Deno.env.get('ANTHROPIC_MODEL_VISION');
 
   if (!supabaseUrl || !serviceKey) return json({ error: 'supabase_env_missing' }, 500);
   if (!anthropicKey) return json({ error: 'anthropic_key_missing' }, 500);
+  if (!model) return json({ error: 'model_missing' }, 500);
 
   const admin = createClient(supabaseUrl, serviceKey);
 
@@ -101,10 +126,9 @@ Deno.serve(async (req: Request) => {
 
   let parsed: z.infer<typeof ScanSchema> | null = null;
   try {
-    const response = await client.messages.parse({
-      model: MODEL,
-      max_tokens: 16000,
-      thinking: { type: 'adaptive' },
+    const response = await client.messages.create({
+      model,
+      max_tokens: 4000,
       system:
         'You extract German vocabulary from photographs of printed text. ' +
         'List each distinct content word once, with its dictionary form. ' +
@@ -121,9 +145,11 @@ Deno.serve(async (req: Request) => {
           { type: 'text', text: 'Extract the German vocabulary from this page.' },
         ],
       }],
-      output_config: { format: zodOutputFormat(ScanSchema) },
+      output_config: { format: { type: 'json_schema', schema: SCAN_JSON_SCHEMA } },
     });
-    parsed = response.parsed_output;
+    const text = response.content.find((block) => block.type === 'text');
+    const checked = ScanSchema.safeParse(JSON.parse(text && text.type === 'text' ? text.text : 'null'));
+    parsed = checked.success ? checked.data : null;
   } catch (err) {
     console.error('anthropic error:', err);
     return json({ error: 'vision_failed' }, 502);
@@ -131,12 +157,13 @@ Deno.serve(async (req: Request) => {
 
   if (!parsed) return json({ error: 'vision_unparseable' }, 502);
 
-  // 2. Match lemmas against the catalogue. Unmatched tokens are DROPPED, never
-  //    guessed at — design-spec.md §6.2 is explicit about this.
+  // 2. Match lemmas against the words a learner can actually study: deck_words, which
+  //    holds reviewed catalogue entries (and this user's own scan imports). Draft entries
+  //    never reach a deck. Unmatched tokens are DROPPED, never guessed at (§6.2).
   const lemmas = [...new Set(parsed.words.map((w: { lemma: string }) => w.lemma))];
   const { data: matches } = await admin
-    .from('de_words')
-    .select('id, german, article, english, word_type, level, category, thema')
+    .from('deck_words')
+    .select('id, german, article, english, word_type, level, thema')
     .in('german', lemmas);
 
   const matched: Array<{ level: string }> = matches ?? [];
