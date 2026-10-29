@@ -37,3 +37,72 @@ export async function deleteMyWord(id: string): Promise<{ ok: true } | { ok: fal
   if (!data) return { ok: false, error: 'Dieses Wort kann nicht gelöscht werden.' };
   return { ok: true };
 }
+
+/** One row in the combined dictionary view. `source` says whose word it is. */
+export interface DictionaryEntry {
+  id: string;
+  source: 'catalogue' | 'personal';
+  german: string;
+  article: string | null;
+  word_type: string;
+  english: string;
+  level: CEFRLevel;
+  example_de: string | null;
+  example_en: string | null;
+  synonyms: string[];
+}
+
+/** Characters that would change the filter's meaning are removed. */
+export function cleanQuery(raw: string): string {
+  return raw.replace(/[%_,()*\\"]/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+const ENTRY_LIMIT = 40;
+
+/** The learner's own words and the master dictionary, searched together. An empty query
+ *  lists the learner's words first, then the most frequent master words. */
+export async function searchDictionary(
+  raw: string,
+): Promise<{ ok: true; data: DictionaryEntry[] } | { ok: false; error: string }> {
+  const query = cleanQuery(raw);
+  const pattern = `%${query}%`;
+
+  const personalQuery = supabase
+    .from('user_words')
+    .select('id, german, article, word_type, english, level, example_de, example_en, synonyms')
+    .order('german', { ascending: true })
+    .limit(ENTRY_LIMIT);
+  const catalogueQuery = supabase
+    .from('deck_words')
+    .select('id, german, article, word_type, english, level, example_de, example_en, synonyms')
+    .eq('origin', 'catalogue')
+    .order('frequency_rank', { ascending: true, nullsFirst: false })
+    .limit(ENTRY_LIMIT);
+
+  const [personal, catalogue] = await Promise.all([
+    query ? personalQuery.or(`german.ilike.${pattern},english.ilike.${pattern}`) : personalQuery,
+    query ? catalogueQuery.or(`german.ilike.${pattern},english.ilike.${pattern}`) : catalogueQuery,
+  ]);
+  if (personal.error || catalogue.error) return { ok: false, error: 'Suche fehlgeschlagen. Versuche es noch einmal.' };
+
+  const toEntry = (row: Record<string, unknown>, source: DictionaryEntry['source']): DictionaryEntry => ({
+    id: String(row.id),
+    source,
+    german: String(row.german),
+    article: (row.article as string | null) ?? null,
+    word_type: String(row.word_type),
+    english: String(row.english),
+    level: row.level as CEFRLevel,
+    example_de: (row.example_de as string | null) ?? null,
+    example_en: (row.example_en as string | null) ?? null,
+    synonyms: (row.synonyms as string[] | null) ?? [],
+  });
+
+  return {
+    ok: true,
+    data: [
+      ...(personal.data ?? []).map((r) => toEntry(r as Record<string, unknown>, 'personal')),
+      ...(catalogue.data ?? []).map((r) => toEntry(r as Record<string, unknown>, 'catalogue')),
+    ],
+  };
+}
