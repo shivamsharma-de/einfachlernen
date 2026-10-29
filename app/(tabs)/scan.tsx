@@ -75,7 +75,17 @@ export default function ScanScreen() {
       // The strict gate runs on the phone first. A photo that is not clearly a page of text
       // is never sent. Any failed check blocks the photo (fail closed).
       const prepared = await preparePhoto(photo.uri);
-      const gate = decidePage(await measurePage(prepared));
+      const measured = await measurePage(prepared);
+      const gate = decidePage(measured);
+      if (__DEV__) {
+        // Development only: numbers, never the photo or any words, for tuning the gate.
+        console.log('page gate', gate.allow ? 'allow' : gate.reason, measured && {
+          text: measured.textCoverage.toFixed(2),
+          words: measured.wordCount,
+          people: measured.humanCoverage.toFixed(3),
+          explicit: measured.nsfw && (measured.nsfw.porn + measured.nsfw.hentai + measured.nsfw.sexy).toFixed(3),
+        });
+      }
       if (!gate.allow) {
         track('scan_result', {
           candidates: 0, catalogue: 0, already_yours: 0, duration_ms: 0, ok: false,
