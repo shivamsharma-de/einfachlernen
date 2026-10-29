@@ -20,8 +20,18 @@ import {
 } from '../../lib/ocr';
 import type { CEFRLevel } from '../../types/index';
 import { track, type ErrorCode } from '../../lib/analytics';
+import { measurePage } from '../../lib/pageMeasure';
+import { decidePage, GATE_MESSAGES, type BlockReason } from '../../lib/pageGate';
 
 type Phase = 'idle' | 'busy' | 'review' | 'saved';
+
+/** Analytics codes for gate blocks. Codes only: no photo data, no content. */
+const GATE_CODE: Record<BlockReason, ErrorCode> = {
+  unavailable: 'gate_unavailable',
+  explicit: 'gate_explicit',
+  people: 'gate_people',
+  no_text: 'gate_no_text',
+};
 
 /** Selection keys: catalogue words by id, candidates by their lower-case German. */
 const candidateKey = (c: Candidate) => `c:${c.german.toLowerCase()}`;
@@ -62,8 +72,20 @@ export default function ScanScreen() {
         return;
       }
       track('scan_photo_taken');
-      const base64 = await preparePhoto(photo.uri);
-      const result = await scanPhoto(base64, level);
+      // The strict gate runs on the phone first. A photo that is not clearly a page of text
+      // is never sent. Any failed check blocks the photo (fail closed).
+      const prepared = await preparePhoto(photo.uri);
+      const gate = decidePage(await measurePage(prepared));
+      if (!gate.allow) {
+        track('scan_result', {
+          candidates: 0, catalogue: 0, already_yours: 0, duration_ms: 0, ok: false,
+          error_code: GATE_CODE[gate.reason],
+        });
+        setError(GATE_MESSAGES[gate.reason]);
+        setPhase('idle');
+        return;
+      }
+      const result = await scanPhoto(prepared.base64, level);
       if (!result.ok) {
         fail(result.error, result.code);
         setPhase('idle');

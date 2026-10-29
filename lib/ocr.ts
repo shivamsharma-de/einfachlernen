@@ -78,15 +78,18 @@ async function codeOf(error: unknown): Promise<string> {
   }
 }
 
-/** Shrink a camera photo before upload: 1600px wide, JPEG 0.7, returned as base64. */
-export async function preparePhoto(uri: string): Promise<string> {
+export interface PreparedPhoto { uri: string; width: number; height: number; base64: string }
+
+/** Shrink a camera photo before any check or upload: 1600px wide, JPEG 0.7. The uri and
+ *  size are kept, because the on-device checks measure the same file. */
+export async function preparePhoto(uri: string): Promise<PreparedPhoto> {
   const out = await manipulateAsync(uri, [{ resize: { width: 1600 } }], {
     compress: 0.7,
     format: SaveFormat.JPEG,
     base64: true,
   });
   if (!out.base64) throw new Error('Foto konnte nicht verarbeitet werden.');
-  return out.base64;
+  return { uri: out.uri, width: out.width, height: out.height, base64: out.base64 };
 }
 
 /** A page scan can take a while; past this the learner should see an error, not a spinner. */

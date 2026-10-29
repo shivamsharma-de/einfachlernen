@@ -42,6 +42,7 @@ export const ERROR_CODES = [
   'start_failed',
   'delete_failed',
   'network',
+  'gate_unavailable', 'gate_explicit', 'gate_people', 'gate_no_text',
   'unknown',
 ] as const;
 export type ErrorCode = (typeof ERROR_CODES)[number];
