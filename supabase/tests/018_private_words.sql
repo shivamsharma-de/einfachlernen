@@ -26,7 +26,7 @@ select public.import_scan_words(null,
   '[{"german":"zauberstab","article":"der","word_type":"noun","english":"magic wand","level":"A1","forms":{},"example_de":"","example_en":"","uncertain":false}]'::jsonb,
   '2026-10-29'::date);
 
-\echo '3. progress rows added_via: expect scan for both words, and the AI word has meaning_source ai'
+\echo '3. progress: expect only the catalogue word (personal words start as new cards); the AI word has meaning_source ai'
 select wp.word_id, wp.added_via from public.word_progress wp where wp.user_id='77777777-7777-7777-7777-777777777777' order by 1;
 select german, meaning_source, uncertain from public.user_words where user_id='77777777-7777-7777-7777-777777777777';
 
