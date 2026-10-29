@@ -86,6 +86,7 @@ Tick each line on the device. Note any failure with the step number.
 ## C. External settings to check before release
 
 - [ ] **Google sign-in.** The Google OAuth client for the Supabase callback is set up. The consent screen is in production. The Supabase redirect allow-list contains `swapo://auth/callback`.
+  - **OPEN:** on the development build the return address is `exp+swapo://…`, which Supabase's allow list does not accept (`exp+swapo://**` was rejected). Deferred. Verify on the production or preview build, where the address is `swapo://auth/callback`, before release.
 - [ ] **Apple sign-in.** The Services ID and key are set. The revoke step has been checked against Apple's documentation.
 - [ ] **Production environment.** EAS production variables are set (EXPO_PUBLIC_SUPABASE_URL, EXPO_PUBLIC_SUPABASE_ANON_KEY, EXPO_PUBLIC_POSTHOG_KEY, EXPO_PUBLIC_POSTHOG_HOST).
 - [ ] **Server.** `scan-words` is deployed (version 3 or later), and the secrets are set.
