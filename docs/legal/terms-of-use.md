@@ -7,7 +7,7 @@ Stand / Last updated: [DATUM]
 
 ## 1. Anbieter / Provider
 
-Shivam Sharma, [ADRESSE], E-Mail: support@swypo.app
+Shivam Sharma, E-Mail: support@swypo.app
 
 ## 2. Geltungsbereich / Scope
 

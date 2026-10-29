@@ -9,7 +9,7 @@
 **Stand:** [DATUM]
 
 ### 1. Verantwortlicher
-Shivam Sharma, [ADRESSE], Deutschland. Kontakt: [CONTACT EMAIL]. swypo ist eine iOS-App zum Deutschlernen für Englischsprechende.
+Shivam Sharma, Deutschland. Kontakt: support@swypo.app. swypo ist eine iOS-App zum Deutschlernen für Englischsprechende.
 
 ### 2. Welche Daten wir verarbeiten und warum
 
@@ -65,7 +65,7 @@ Wir passen diese Erklärung an, wenn sich die Verarbeitung ändert, und informie
 **Last updated:** [DATE]
 
 ### 1. Controller
-Shivam Sharma, [ADDRESS], Germany. Contact: [CONTACT EMAIL]. swypo is an iOS app for English speakers learning German.
+Shivam Sharma, Germany. Contact: support@swypo.app. swypo is an iOS app for English speakers learning German.
 
 ### 2. What data we process and why
 
