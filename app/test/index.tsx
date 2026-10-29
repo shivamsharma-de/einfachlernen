@@ -201,6 +201,15 @@ export default function TestScreen() {
             </View>
           </View>
 
+          {test.studied !== undefined && test.total > test.studied && (
+            <Text style={styles.legend}>
+              {t(
+                `${test.studied} aus deinen gelernten Wörtern · ${test.total - test.studied} aus deinem Niveau`,
+                `${test.studied} from words you studied · ${test.total - test.studied} from your level`,
+              )}
+            </Text>
+          )}
+
           {test.questions[index].options.map((opt, i) => {
             const isCorrect = verdict !== null && i === verdict.correctIndex;
             const isWrongChoice = verdict !== null && i === verdict.chosen && !verdict.correct;

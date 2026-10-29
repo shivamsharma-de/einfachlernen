@@ -20,7 +20,7 @@ import {
 } from '../../lib/ocr';
 import type { CEFRLevel } from '../../types/index';
 import { track, type ErrorCode } from '../../lib/analytics';
-import { measurePage } from '../../lib/pageMeasure';
+import { measurePage, getLastMeasureError } from '../../lib/pageMeasure';
 import { decidePage, GATE_MESSAGES, type BlockReason } from '../../lib/pageGate';
 
 type Phase = 'idle' | 'busy' | 'review' | 'saved';
@@ -91,7 +91,7 @@ export default function ScanScreen() {
           candidates: 0, catalogue: 0, already_yours: 0, duration_ms: 0, ok: false,
           error_code: GATE_CODE[gate.reason],
         });
-        setError(GATE_MESSAGES[gate.reason]);
+        setError(GATE_MESSAGES[gate.reason] + (__DEV__ && getLastMeasureError() ? `\n(dev: ${getLastMeasureError()})` : ''));
         setPhase('idle');
         return;
       }

@@ -14,6 +14,12 @@ export type { Box };
 
 export interface PhotoFile { uri: string; width: number; height: number }
 
+/** The reason the last check failed, for development builds. Null after a successful check. */
+let lastError: string | null = null;
+export function getLastMeasureError(): string | null {
+  return lastError;
+}
+
 /** Runs all three checks. Returns null when any of them fails, so the gate blocks the photo. */
 export async function measurePage(photo: PhotoFile): Promise<PageMeasurement | null> {
   try {
@@ -26,8 +32,12 @@ export async function measurePage(photo: PhotoFile): Promise<PageMeasurement | n
         base64: true,
       }),
     ]);
-    if (!small.base64) return null;
+    if (!small.base64) {
+      lastError = 'resize produced no image';
+      return null;
+    }
 
+    lastError = null;
     const lines = text.blocks.flatMap((b) => b.lines);
     const textBoxes = lines.flatMap((l) => (l.frame ? [l.frame] : []));
     const faceBoxes = faces.map((f) => f.frame);
@@ -40,7 +50,8 @@ export async function measurePage(photo: PhotoFile): Promise<PageMeasurement | n
       nsfw,
     };
   } catch (err) {
-    console.warn('measurePage failed:', err);
+    lastError = err instanceof Error ? err.message : String(err);
+    console.warn('measurePage failed:', lastError);
     return null;
   }
 }

@@ -25,6 +25,8 @@ export type TestStart = {
   attempt_id: string;
   mode: 'studied' | 'first_look';
   total: number;
+  /** How many of the questions come from words the learner has studied (migration 021). */
+  studied?: number;
   questions: TestQuestion[];
 };
 
