@@ -7,7 +7,8 @@
  * `track()` runs every property through `sanitizeProperties()`, which drops anything
  * that is not on the schema below, and any string longer than 40 characters.
  *
- * Analytics is off when EXPO_PUBLIC_POSTHOG_KEY is unset, and always off in __DEV__.
+ * Analytics is off when EXPO_PUBLIC_POSTHOG_KEY is unset. It is also off in development
+ * builds unless EXPO_PUBLIC_ANALYTICS_IN_DEV=true, so testers can switch it on for a test run.
  */
 import PostHog from 'posthog-react-native';
 import { THEMES, type ThemeId } from '../constants/Themes';
@@ -182,10 +183,11 @@ export function toErrorCode(raw: unknown): ErrorCode {
 const KEY = (process.env.EXPO_PUBLIC_POSTHOG_KEY ?? '').trim();
 const HOST = (process.env.EXPO_PUBLIC_POSTHOG_HOST ?? '').trim() || 'https://eu.i.posthog.com';
 const IS_DEV = typeof __DEV__ !== 'undefined' && __DEV__;
+const DEV_ON = (process.env.EXPO_PUBLIC_ANALYTICS_IN_DEV ?? '').trim() === 'true';
 
 /** Null when there is no key or this is a dev build. Every call below is then a no-op. */
 const client: PostHog | null = (() => {
-  if (!KEY || IS_DEV) return null;
+  if (!KEY || (IS_DEV && !DEV_ON)) return null;
   try {
     return new PostHog(KEY, {
       host: HOST,
