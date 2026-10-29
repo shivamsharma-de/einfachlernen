@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Colors, Type, Space, Radius, HIT } from '../../constants/Colors';
 import { useAuth } from '../../context/auth';
 import { LanguageToggle, useI18n } from '../../lib/i18n';
+import { track, toErrorCode, type SignInFailReason } from '../../lib/analytics';
 
 export default function LoginScreen() {
   const { signInWithGoogle, signInWithApple, signInWithEmail } = useAuth();
@@ -29,11 +30,14 @@ export default function LoginScreen() {
     void AppleAuthentication.isAvailableAsync().then(setAppleAvailable).catch(() => setAppleAvailable(false));
   }, []);
 
-  async function run(action: () => Promise<{ error?: string; cancelled?: boolean }>) {
+  async function run(action: () => Promise<{ error?: string; reason?: SignInFailReason }>) {
     setBusy(true);
     const result = await action();
     setBusy(false);
-    if (result.error) Alert.alert(t('Anmeldung fehlgeschlagen', 'Sign-in failed'), result.error);
+    if (result.error) {
+      track('error_shown', { area: 'sign_in', error_code: toErrorCode(result.reason) });
+      Alert.alert(t('Anmeldung fehlgeschlagen', 'Sign-in failed'), result.error);
+    }
   }
 
   return (

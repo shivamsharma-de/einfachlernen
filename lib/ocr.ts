@@ -2,6 +2,7 @@ import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 import { supabase } from './supabase';
 import { localISODate } from './localdate';
 import type { CEFRLevel } from '../types/index';
+import { track, toErrorCode, type ErrorCode } from './analytics';
 
 /** The scan boundary. The photo (or one typed word) goes to the server, which asks the model
  *  configured there (scan-words, _shared/vision.ts). No model is named on the device. */
@@ -40,7 +41,8 @@ export interface ScanOutcome {
   totalDetected: number;
 }
 
-export type ScanResult = { ok: true; data: ScanOutcome } | { ok: false; error: string };
+/** `error` is the German text for the learner. `code` is the catalogue code, the only thing analytics sees. */
+export type ScanResult = { ok: true; data: ScanOutcome } | { ok: false; error: string; code: ErrorCode };
 
 interface ScanResponse {
   scan_id: string | null;
@@ -98,13 +100,21 @@ async function call(body: Record<string, unknown>): Promise<ScanResult> {
   const request = supabase.functions.invoke<ScanResponse>('scan-words', { body });
   const { data, error } = await Promise.race([request, timeout]).finally(() => clearTimeout(timer));
   if (error?.message === 'timeout') {
-    return { ok: false, error: 'Das dauert zu lange. Prüfe deine Verbindung und versuche es noch einmal.' };
+    return {
+      ok: false,
+      error: 'Das dauert zu lange. Prüfe deine Verbindung und versuche es noch einmal.',
+      code: 'timeout',
+    };
   }
   if (error) {
-    const code = await codeOf(error);
-    return { ok: false, error: MESSAGES[code] ?? 'Das hat nicht geklappt. Versuche es noch einmal.' };
+    const raw = await codeOf(error);
+    return {
+      ok: false,
+      error: MESSAGES[raw] ?? 'Das hat nicht geklappt. Versuche es noch einmal.',
+      code: toErrorCode(raw),
+    };
   }
-  if (!data) return { ok: false, error: 'Keine Antwort vom Server.' };
+  if (!data) return { ok: false, error: 'Keine Antwort vom Server.', code: 'no_response' };
   return {
     ok: true,
     data: {
@@ -119,8 +129,30 @@ async function call(body: Record<string, unknown>): Promise<ScanResult> {
 }
 
 /** Reads a page photo. Words above `level` come back as candidates or catalogue hits. */
-export function scanPhoto(imageBase64: string, level: CEFRLevel): Promise<ScanResult> {
-  return call({ image_base64: imageBase64, level });
+export async function scanPhoto(imageBase64: string, level: CEFRLevel): Promise<ScanResult> {
+  const started = Date.now();
+  const result = await call({ image_base64: imageBase64, level });
+  const duration_ms = Date.now() - started;
+  if (result.ok) {
+    track('scan_result', {
+      candidates: result.data.candidates.length,
+      catalogue: result.data.catalogue.length,
+      already_yours: result.data.alreadyYours,
+      duration_ms,
+      ok: true,
+      error_code: 'none',
+    });
+  } else {
+    track('scan_result', {
+      candidates: 0,
+      catalogue: 0,
+      already_yours: 0,
+      duration_ms,
+      ok: false,
+      error_code: result.code,
+    });
+  }
+  return result;
 }
 
 /** Looks up one typed word for "Wort hinzufügen". Always returns it as a candidate. */

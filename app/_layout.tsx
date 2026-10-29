@@ -7,6 +7,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { AuthProvider, useAuth } from '../context/auth';
 import { I18nProvider } from '../lib/i18n';
 import { flushReviews } from '../lib/api';
+import { track } from '../lib/analytics';
 import { Colors, Font } from '../constants/Colors';
 
 // Hold the native splash until the faces are ready, so the first frame is
@@ -46,6 +47,17 @@ export default function RootLayout() {
   // Never strand the user on the splash: if a face fails to decode, fall through
   // to system fonts rather than blocking forever.
   const ready = fontsLoaded || fontError !== null;
+
+  // One event at launch, and one each time the app comes back from the background.
+  useEffect(() => {
+    track('app_opened');
+    let last = AppState.currentState;
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active' && last === 'background') track('app_opened');
+      last = state;
+    });
+    return () => sub.remove();
+  }, []);
 
   useEffect(() => {
     if (ready) void SplashScreen.hideAsync();

@@ -74,6 +74,8 @@ export function useDeckSession(userId: string | null, levels: CEFRLevel[]) {
   const loadToken = useRef(0);
   const timer = useRef(createSessionTimer());
   const flushedFor = useRef<string | null>(null);
+  // Wall-clock start of the current session, for the session_completed event.
+  const sessionStartedAt = useRef<number>(Date.now());
   // Read inside the unmount cleanup, where state would be stale.
   const totals = useRef({ cards: 0, xp: 0 });
   totals.current = { cards: reviewed, xp: sessionXp };
@@ -123,7 +125,7 @@ export function useDeckSession(userId: string | null, levels: CEFRLevel[]) {
     setSessionXp(0);
     setReviewed(0);
     setLoading(false);
-    track('session_started', { due: result.data.stats.due, new: result.data.stats.new });
+    sessionStartedAt.current = Date.now();
   }, [userId, levelKey]);
 
   useEffect(() => { void load('resume'); }, [load]);
@@ -156,6 +158,8 @@ export function useDeckSession(userId: string | null, levels: CEFRLevel[]) {
     if (flushedFor.current === session.id) return;
     flushedFor.current = session.id;
     const t = timer.current;
+    const minutes = Math.round((Date.now() - sessionStartedAt.current) / 60_000);
+    track('session_completed', { cards: totals.current.cards, minutes });
     void t.stop({ cards: totals.current.cards, xp: totals.current.xp }).then(() => t.start());
   }, [status, session]);
 
@@ -214,7 +218,7 @@ export function useDeckSession(userId: string | null, levels: CEFRLevel[]) {
       setFacingBack(false);
       setReviewed((n) => n + 1);
       setSessionXp((xp) => xp + GRADES[value].xp);
-      track('card_graded', { grade: value, origin });
+      track('card_graded', { grade: value, is_new: current.isNew, origin });
     } finally {
       setGrading(false);
     }

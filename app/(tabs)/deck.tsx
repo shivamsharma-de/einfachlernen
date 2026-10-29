@@ -42,6 +42,7 @@ import { ARTICLE_COLOR, Colors, Radius, Space, Type } from '../../constants/Colo
 import { Eyebrow, GradeRow, LevelBadge, PillButton } from '../../components';
 import { useAuth } from '../../context/auth';
 import { useDeckSession } from '../../hooks/useDeckSession';
+import { track } from '../../lib/analytics';
 import { examplesFor, grammarLine, wordTypeLabel } from '../../hooks/grammar';
 import { levelsOf } from '../../lib/profile';
 import type { DeckCard, Grade, WordEnrichment } from '../../types/contracts';
@@ -61,6 +62,14 @@ export default function DeckScreen() {
   const cardHeight = Math.max(264, Math.min(420, Math.round(height * 0.46)));
 
   const { grade } = deck;
+
+  useEffect(() => { track('deck_opened'); }, []);
+
+  // The error text is shown from deck.error; the event carries only its code.
+  useEffect(() => {
+    if (deck.status === 'error') track('error_shown', { area: 'deck', error_code: 'load_failed' });
+  }, [deck.status]);
+
   const onSwipeRight = useCallback(() => { void grade(GRADE_LEARNED); }, [grade]);
   const onSwipeLeft = useCallback(() => { void grade(GRADE_AGAIN); }, [grade]);
 
@@ -416,6 +425,7 @@ function CardBack({ card, enrichment, enriching }: {
 
   const speak = useCallback(() => {
     void Speech.stop();
+    track('word_spoken');
     Speech.speak(word.german, { language: 'de-DE' });
   }, [word.german]);
 

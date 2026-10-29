@@ -6,6 +6,7 @@ import {
 import { Colors } from '../../constants/Colors';
 import { Phrase } from '../../types';
 import { fetchAllPhrases } from '../../lib/db';
+import { track } from '../../lib/analytics';
 
 const REGISTER_COLOR: Record<string, string> = {
   formal: Colors.blue,
@@ -31,6 +32,8 @@ export default function PhrasesScreen() {
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState<string>('All');
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => { track('phrases_opened'); }, []);
 
   useEffect(() => {
     fetchAllPhrases()

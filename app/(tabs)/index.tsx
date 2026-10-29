@@ -15,6 +15,7 @@ import { useAuth } from '../../context/auth';
 import { levelsOf } from '../../lib/profile';
 import { fetchToday, fetchStreak, DAILY_MINUTES_GOAL } from '../../lib/activity';
 import { stufe } from '../../lib/progress';
+import { track } from '../../lib/analytics';
 import { Word } from '../../types';
 
 function greeting(hour: number): { de: string; en: string } {
@@ -61,6 +62,8 @@ function toWordRow(w: DeckWord): Word {
 export default function HomeScreen() {
   const router = useRouter();
   const { user, profile } = useAuth();
+  useEffect(() => { track('home_opened'); }, []);
+
   // Level is read-only here — it is chosen in Profil and nowhere else (PRD v2 D1).
   const levels = levelsOf(profile);
   const levelKey = levels.join(',');
@@ -252,7 +255,11 @@ export default function HomeScreen() {
               <TouchableOpacity
                 key={t.category}
                 style={styles.tile}
-                onPress={() => router.push('/(tabs)/deck')}
+                onPress={() => {
+                  const theme = themeForCategory(t.category);
+                  if (theme) track('theme_opened', { theme_id: theme.id, band: theme.band });
+                  router.push('/(tabs)/deck');
+                }}
                 accessibilityRole="button"
                 accessibilityLabel={t.category}
                 activeOpacity={0.85}

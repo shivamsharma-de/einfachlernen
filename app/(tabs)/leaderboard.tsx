@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
   StyleSheet, SafeAreaView,
 } from 'react-native';
 import { Colors } from '../../constants/Colors';
+import { track } from '../../lib/analytics';
 
 interface Player {
   rank: number;
@@ -38,6 +39,7 @@ const MEDAL: Record<number, string> = { 1: '🥇', 2: '🥈', 3: '🥉' };
 type BoardTab = 'global' | 'friends';
 
 export default function LeaderboardScreen() {
+  useEffect(() => { track('leaderboard_opened'); }, []);
   const [tab, setTab] = useState<BoardTab>('global');
   const players = tab === 'global' ? GLOBAL_PLAYERS : FRIENDS_PLAYERS;
 

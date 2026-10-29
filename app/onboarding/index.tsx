@@ -76,12 +76,15 @@ export default function LevelSelectionScreen() {
       : await completeOnboarding(user.id, selected);
 
     if (result.error) {
+      track('error_shown', { area: 'onboarding', error_code: 'save_failed' });
       setSaveError(result.error);
       setSaving(false);
       return;
     }
 
-    track('onboarding_completed', { levels: selected.join(',') });
+    // Onboarding is also the full level picker from Profil; only the first run is onboarding.
+    if (alreadyOnboarded) track('levels_changed', { levels_count: selected.length });
+    else track('onboarding_completed', { levels_count: selected.length });
     await refreshProfile();
     router.replace('/(tabs)/deck');
   }, [user, selected, saving, alreadyOnboarded, refreshProfile, router]);

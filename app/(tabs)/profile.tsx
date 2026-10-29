@@ -12,6 +12,7 @@ import { levelsOf, updateLevels, updateDisplayName } from '../../lib/profile';
 import { setScanConsent } from '../../lib/ocr';
 import { supabase } from '../../lib/supabase';
 import { LanguageToggle, useI18n } from '../../lib/i18n';
+import { track } from '../../lib/analytics';
 import { fetchToday, fetchStreak, DAILY_MINUTES_GOAL } from '../../lib/activity';
 import { stufe } from '../../lib/progress';
 import { CEFRLevel } from '../../types';
@@ -77,12 +78,14 @@ export default function ProfileScreen() {
             void (async () => {
               const { error } = await supabase.functions.invoke('delete-account');
               if (error) {
+                track('error_shown', { area: 'account', error_code: 'delete_failed' });
                 Alert.alert(
                   t('Löschen fehlgeschlagen', 'Deletion failed'),
                   t('Bitte versuche es erneut. Dein Konto wurde nicht gelöscht.', 'Please try again. Your account was not deleted.'),
                 );
                 return;
               }
+              track('account_deleted');
               await signOut();
             })();
           },
@@ -99,7 +102,8 @@ export default function ProfileScreen() {
       : [...levels, target];
     if (next.length === 0) return;
     setSavingLevel(true);
-    await updateLevels(user.id, next);
+    const res = await updateLevels(user.id, next);
+    if (!res.error) track('levels_changed', { levels_count: next.length });
     await refreshProfile();
     setSavingLevel(false);
   }, [user, levels, refreshProfile]);
@@ -117,7 +121,11 @@ export default function ProfileScreen() {
     setConsentBusy(true);
     setConsentError(null);
     const result = await setScanConsent(user.id, granted);
-    if (!result.ok) setConsentError(result.error);
+    if (result.ok) track('scan_consent_changed', { granted });
+    else {
+      track('error_shown', { area: 'scan', error_code: 'save_failed' });
+      setConsentError(result.error);
+    }
     await refreshProfile();
     setConsentBusy(false);
   }, [user, refreshProfile]);

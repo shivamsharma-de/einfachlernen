@@ -16,6 +16,7 @@ import { levelsOf } from '../lib/profile';
 import { fetchMyWords, deleteMyWord, type PersonalWord } from '../lib/dictionary';
 import { lookupWord, importScanWords, type Candidate } from '../lib/ocr';
 import type { CEFRLevel } from '../types/index';
+import { track, type ErrorCode } from '../lib/analytics';
 
 export default function MyWordsScreen() {
   const { user, profile } = useAuth();
@@ -31,16 +32,23 @@ export default function MyWordsScreen() {
   const [lookupNote, setLookupNote] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
+  /** Shows an error and records its code. The text itself is never tracked. */
+  const fail = useCallback((text: string, code: ErrorCode) => {
+    track('error_shown', { area: 'my_words', error_code: code });
+    setError(text);
+  }, []);
+
   const load = useCallback(async () => {
     const res = await fetchMyWords();
     if (res.ok) {
       setWords(res.data);
       setError(null);
     } else {
-      setError(res.error);
+      fail(res.error, 'load_failed');
     }
-  }, []);
+  }, [fail]);
 
+  useEffect(() => { track('my_words_opened'); }, []);
   useEffect(() => { void load(); }, [load]);
 
   const lookup = useCallback(async () => {
@@ -53,9 +61,12 @@ export default function MyWordsScreen() {
     const res = await lookupWord(word, level);
     setLooking(false);
     if (!res.ok) {
-      setError(res.error);
+      fail(res.error, res.code);
       return;
     }
+    track('word_looked_up', {
+      found: res.data.catalogue.length > 0 ? 'catalogue' : res.data.candidates.length > 0 ? 'candidate' : 'none',
+    });
     if (res.data.catalogue.length > 0) {
       setLookupNote(`„${res.data.catalogue[0].german}“ ist schon im Wörterbuch.`);
       return;
@@ -65,7 +76,7 @@ export default function MyWordsScreen() {
       return;
     }
     setPreview(res.data.candidates[0]);
-  }, [query, level]);
+  }, [query, level, fail]);
 
   const save = useCallback(async () => {
     if (!preview) return;
@@ -74,13 +85,14 @@ export default function MyWordsScreen() {
     const res = await importScanWords(null, [], [preview]);
     setSaving(false);
     if (!res.ok) {
-      setError(res.error);
+      fail(res.error, 'save_failed');
       return;
     }
+    track('word_added', { count: res.imported });
     setPreview(null);
     setQuery('');
     await load();
-  }, [preview, load]);
+  }, [preview, load, fail]);
 
   const remove = useCallback((w: PersonalWord) => {
     Alert.alert(
@@ -95,16 +107,17 @@ export default function MyWordsScreen() {
             void (async () => {
               const res = await deleteMyWord(w.id);
               if (!res.ok) {
-                setError(res.error);
+                fail(res.error, 'delete_failed');
                 return;
               }
+              track('word_deleted');
               await load();
             })();
           },
         },
       ],
     );
-  }, [load]);
+  }, [load, fail]);
 
   if (!user) return null;
 

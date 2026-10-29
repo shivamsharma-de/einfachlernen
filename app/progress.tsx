@@ -13,6 +13,7 @@ import { useI18n } from '../lib/i18n';
 import { fetchToday, fetchRecent, fetchStreak, DAILY_MINUTES_GOAL, type DailyActivity } from '../lib/activity';
 import { levelProgress, type LevelProgress } from '../lib/api';
 import { fetchLights, type LightCounts } from '../lib/test';
+import { track } from '../lib/analytics';
 import type { CEFRLevel } from '../types/index';
 
 const pct = (part: number, whole: number) => (`${whole > 0 ? Math.min(100, (part / whole) * 100) : 0}%` as const);
@@ -31,6 +32,12 @@ export default function ProgressScreen() {
   const [lights, setLights] = useState<LightCounts | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => { track('progress_opened'); }, []);
+  // The error text is shown from state; the event carries only its code.
+  useEffect(() => {
+    if (error) track('error_shown', { area: 'progress', error_code: 'load_failed' });
+  }, [error]);
 
   useEffect(() => {
     if (!user) return;

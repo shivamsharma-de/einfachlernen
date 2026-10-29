@@ -17,6 +17,7 @@ import { useAuth } from '../../context/auth';
 import { levelsOf } from '../../lib/profile';
 import { useI18n } from '../../lib/i18n';
 import { startTest, submitAnswer, finishTest, fetchLights, type TestStart, type LightCounts } from '../../lib/test';
+import { track } from '../../lib/analytics';
 
 type Verdict = { chosen: number; correct: boolean; correctIndex: number };
 
@@ -42,6 +43,11 @@ export default function TestScreen() {
   const [result, setResult] = useState<{ correct: number; total: number; perfect: boolean } | null>(null);
   const [lights, setLights] = useState<LightCounts | null>(null);
 
+  // The error text is shown from state; the event carries only its code.
+  useEffect(() => {
+    if (error) track('error_shown', { area: 'test', error_code: 'start_failed' });
+  }, [error]);
+
   // How many studied words the learner has, so the setup step can say what "all" means.
   useEffect(() => {
     let cancelled = false;
@@ -63,7 +69,10 @@ export default function TestScreen() {
     setLights(null);
     const res = await startTest(levels, count);
     if (!res.ok) setError(res.error);
-    else setTest(res.data);
+    else {
+      setTest(res.data);
+      track('test_started', { size: res.data.questions.length, mode: res.data.mode });
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [levelKey]);
 
@@ -83,6 +92,7 @@ export default function TestScreen() {
     const correct = chosen === q.correct_index;
     setVerdict({ chosen, correct, correctIndex: q.correct_index });
     if (correct) setScore((s) => s + 1);
+    track('test_answered', { correct });
 
     // Send in the background. The server's XP is shown when it arrives.
     void submitAnswer(user.id, q.item_id, chosen)
@@ -99,9 +109,11 @@ export default function TestScreen() {
     const done = await finishTest(user.id, test.attempt_id);
     const counts = await fetchLights(levels);
     setLights(counts.ok ? counts.data : null);
-    setResult(done.ok
+    const finished = done.ok
       ? { correct: done.data.correct, total: done.data.total, perfect: done.data.perfect_bonus }
-      : { correct: score, total: test.questions.length, perfect: false });
+      : { correct: score, total: test.questions.length, perfect: false };
+    track('test_finished', { correct: finished.correct, total: finished.total, perfect: finished.perfect });
+    setResult(finished);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [test, user, index, score, levelKey]);
 

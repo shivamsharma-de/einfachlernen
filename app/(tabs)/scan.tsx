@@ -3,7 +3,7 @@
  * words. The learner reviews the list, ticks what they want, and the chosen words go into their
  * own dictionary (and, for catalogue words, the deck).
  */
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View, Text, StyleSheet, SafeAreaView, ScrollView,
   TouchableOpacity, ActivityIndicator,
@@ -19,6 +19,7 @@ import {
   type ScanOutcome, type Candidate, type CatalogueHit,
 } from '../../lib/ocr';
 import type { CEFRLevel } from '../../types/index';
+import { track, type ErrorCode } from '../../lib/analytics';
 
 type Phase = 'idle' | 'busy' | 'review' | 'saved';
 
@@ -43,6 +44,12 @@ export default function ScanScreen() {
   const [consentBusy, setConsentBusy] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  /** Shows an error and records its code. The text itself is never tracked. */
+  const fail = useCallback((text: string, code: ErrorCode) => {
+    track('error_shown', { area: 'scan', error_code: code });
+    setError(text);
+  }, []);
+
   const capture = useCallback(async () => {
     if (!cameraRef.current) return;
     setError(null);
@@ -50,14 +57,15 @@ export default function ScanScreen() {
     try {
       const photo = await cameraRef.current.takePictureAsync({ quality: 1, skipProcessing: true });
       if (!photo?.uri) {
-        setError('Aufnahme fehlgeschlagen.');
+        fail('Aufnahme fehlgeschlagen.', 'capture_failed');
         setPhase('idle');
         return;
       }
+      track('scan_photo_taken');
       const base64 = await preparePhoto(photo.uri);
       const result = await scanPhoto(base64, level);
       if (!result.ok) {
-        setError(result.error);
+        fail(result.error, result.code);
         setPhase('idle');
         return;
       }
@@ -69,10 +77,10 @@ export default function ScanScreen() {
       ]));
       setPhase('review');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unbekannter Fehler.');
+      fail(err instanceof Error ? err.message : 'Unbekannter Fehler.', 'unknown');
       setPhase('idle');
     }
-  }, [level]);
+  }, [level, fail]);
 
   const toggle = useCallback((key: string) => {
     setSelected((prev) => {
@@ -94,12 +102,13 @@ export default function ScanScreen() {
     const result = await importScanWords(outcome.scanId, catalogueIds, candidates);
     setSaving(false);
     if (!result.ok) {
-      setError(result.error);
+      fail(result.error, 'save_failed');
       return;
     }
+    track('scan_saved', { count: catalogueIds.length + candidates.length });
     setSavedCount(catalogueIds.length + candidates.length);
     setPhase('saved');
-  }, [outcome, selected]);
+  }, [outcome, selected, fail]);
 
   const grant = useCallback(async () => {
     if (!user) return;
@@ -107,11 +116,12 @@ export default function ScanScreen() {
     const result = await setScanConsent(user.id, true);
     setConsentBusy(false);
     if (!result.ok) {
-      setError(result.error);
+      fail(result.error, 'save_failed');
       return;
     }
+    track('scan_consent_changed', { granted: true });
     await refreshProfile();
-  }, [user, refreshProfile]);
+  }, [user, refreshProfile, fail]);
 
   const again = useCallback(() => {
     setPhase('idle');
@@ -119,6 +129,8 @@ export default function ScanScreen() {
     setSelected(new Set());
     setError(null);
   }, []);
+
+  useEffect(() => { track('scan_opened'); }, []);
 
   // ─── Permissions and consent ─────────────────────────────────────────────
 

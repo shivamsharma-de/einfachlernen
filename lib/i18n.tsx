@@ -17,6 +17,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Colors, Type, Space, Radius, HIT } from '../constants/Colors';
 import { useAuth } from '../context/auth';
 import { supabase } from './supabase';
+import { track } from './analytics';
 
 export type Lang = 'de' | 'en';
 
@@ -64,6 +65,7 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
   }, [user?.id, profile?.id, profile?.ui_lang]);
 
   const setLang = useCallback((next: Lang) => {
+    track('language_changed', { lang: next });
     setLangState(next);
     void AsyncStorage.setItem(STORAGE_KEY, next);
     if (user) void supabase.from('profiles').update({ ui_lang: next }).eq('id', user.id);
