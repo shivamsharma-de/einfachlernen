@@ -99,6 +99,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     const result = await WebBrowser.openAuthSessionAsync(data.url, redirectUrl);
+    if (__DEV__) console.log('google sign-in', { redirectUrl, resultType: result.type, returned: result.type === 'success' ? result.url.split('#')[0].split('?')[0] : null });
 
     if (result.type !== 'success') {
       track('sign_in_failed', { method: 'google', reason_code: 'cancelled' });
