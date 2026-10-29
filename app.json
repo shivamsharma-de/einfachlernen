@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "swapo",
+    "name": "swypo",
     "slug": "swapo",
     "version": "1.0.0",
     "scheme": "swapo",
@@ -12,8 +12,8 @@
       "bundleIdentifier": "app.swapo.ios",
       "usesAppleSignIn": true,
       "infoPlist": {
-        "NSCameraUsageDescription": "swapo nutzt die Kamera, um Wörter von einer Seite zu scannen.",
-        "NSPhotoLibraryUsageDescription": "swapo nutzt deine Fotos, um Wörter von einer Seite zu scannen.",
+        "NSCameraUsageDescription": "swypo nutzt die Kamera, um Wörter von einer Seite zu scannen.",
+        "NSPhotoLibraryUsageDescription": "swypo nutzt deine Fotos, um Wörter von einer Seite zu scannen.",
         "ITSAppUsesNonExemptEncryption": false
       },
       "config": {
@@ -40,7 +40,7 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "swapo nutzt die Kamera, um Wörter von einer Seite zu scannen."
+          "cameraPermission": "swypo nutzt die Kamera, um Wörter von einer Seite zu scannen."
         }
       ],
       [
