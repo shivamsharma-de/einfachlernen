@@ -4,6 +4,8 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Colors, Type, Space, Radius, THEMEN } from '../../constants/Colors';
+import { themeForCategory } from '../../constants/Themes';
+import { SvgXml } from 'react-native-svg';
 import { Eyebrow, ProgressRing, StatPair, SectionShelf, WordRow, PillButton } from '../../components';
 import { fetchLights, type LightCounts } from '../../lib/test';
 import { useI18n } from '../../lib/i18n';
@@ -255,11 +257,19 @@ export default function HomeScreen() {
                 accessibilityLabel={t.category}
                 activeOpacity={0.85}
               >
-                <View style={styles.tileArt}>
-                  {[0, 1, 2, 3, 4, 5].map(i => (
-                    <View key={i} style={[styles.stripe, { left: i * 26 - 20 }]} />
-                  ))}
-                </View>
+                {(() => {
+                  const theme = themeForCategory(t.category);
+                  return (
+                    <View style={[styles.tileArt, { backgroundColor: theme?.bg ?? Colors.surface2 }]}>
+                      {theme && <Text style={[styles.tileBand, { color: theme.fg }]}>{theme.band}</Text>}
+                      {theme && (
+                        <View style={styles.tileIcon}>
+                          <SvgXml xml={theme.xml} width={56} height={56} color={theme.fg} />
+                        </View>
+                      )}
+                    </View>
+                  );
+                })()}
                 <Text style={styles.tileTitle} numberOfLines={2}>{t.category}</Text>
                 <Text style={styles.tileCount}>{t.total} Wörter</Text>
               </TouchableOpacity>
@@ -349,17 +359,12 @@ const styles = StyleSheet.create({
     gap: Space.sm,
   },
   tileArt: {
-    height: 88,
+    height: 96,
     borderRadius: Radius.tile,
-    backgroundColor: Colors.surface2,
     overflow: 'hidden',
   },
-  stripe: {
-    position: 'absolute',
-    top: -20, bottom: -20, width: 10,
-    backgroundColor: Colors.surface3,
-    transform: [{ rotate: '20deg' }],
-  },
+  tileBand: { ...Type.meta, position: 'absolute', top: Space.sm, left: Space.md },
+  tileIcon: { position: 'absolute', right: Space.sm, bottom: Space.sm },
   tileTitle: { ...Type.bodyL, color: Colors.white },
   tileCount: { ...Type.meta, color: Colors.textMuted },
 

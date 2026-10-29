@@ -28,6 +28,7 @@ import { supabase } from './supabase';
 import { toSRSState, type WordProgressRow } from './deck';
 import { INITIAL_SRS, isMastered, nextReviewDate, previewIntervals, schedule } from './srs';
 import { constrainedShuffle, mulberry32, reinsertIndex } from './shuffle';
+import { takeNewCards } from './newCards';
 import { localISODate } from './localdate';
 import { currentStudySessionId } from './activity';
 import { Outbox, type SendResult } from './outbox';
@@ -118,22 +119,37 @@ export async function buildSession(
 
     const { data: profile } = await supabase
       .from('profiles')
-      .select('daily_new_cards')
+      .select('daily_new_cards, daily_personal_cards')
       .eq('id', userId)
       .maybeSingle();
     const dailyNew = (profile?.daily_new_cards as number | undefined) ?? 10;
+    const dailyPersonal = (profile?.daily_personal_cards as number | undefined) ?? 5;
 
     const { cards: due } = await fetchDue(userId, maxCards);
 
-    // `next_new_words` already excludes anything the learner has progress on,
-    // and orders by frequency rank, so the most useful words come first.
-    const room = Math.max(0, Math.min(maxCards - due.length, dailyNew));
+    // New cards: the learner's central new words (ordered by frequency, already excluding
+    // anything with progress) and their own scan imports not yet started (migration 020).
+    // Due cards are counted first, so they keep their place.
+    const room = Math.max(0, maxCards - due.length);
     let fresh: DeckCard[] = [];
     if (room > 0) {
       const levels = Array.isArray(level) ? level : [level];
-      const { data, error } = await supabase.rpc('next_new_words', { p_levels: levels, p_limit: room });
-      if (error) throw error;
-      fresh = ((data ?? []) as DeckWord[]).map((w) => toCard(w, undefined));
+      const [central, personal] = await Promise.all([
+        dailyNew > 0
+          ? supabase.rpc('next_new_words', { p_levels: levels, p_limit: Math.min(room, dailyNew) })
+          : Promise.resolve({ data: [] as DeckWord[], error: null }),
+        dailyPersonal > 0
+          ? supabase.rpc('next_personal_words', { p_levels: levels, p_cap: dailyPersonal, p_today: localISODate() })
+          : Promise.resolve({ data: [] as DeckWord[], error: null }),
+      ]);
+      if (central.error) throw central.error;
+      if (personal.error) throw personal.error;
+
+      const centralCards = ((central.data ?? []) as DeckWord[]).map((w) => toCard(w, undefined));
+      const personalCards = ((personal.data ?? []) as DeckWord[]).map((w) =>
+        toCard({ ...w, origin: 'scan' }, undefined),
+      );
+      fresh = takeNewCards(room, centralCards, personalCards);
     }
 
     const queue = constrainedShuffle([...due, ...fresh], (c) => c.isNew, mulberry32(seed));
