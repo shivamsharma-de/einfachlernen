@@ -2,13 +2,14 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, SafeAreaView, TextInput,
   ActivityIndicator, TouchableOpacity,
-  Alert,
+  Alert, Switch,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Colors, Type, Space, Radius, HIT } from '../../constants/Colors';
 import { Eyebrow, PillButton, StatPair } from '../../components';
 import { useAuth } from '../../context/auth';
 import { levelsOf, updateLevels, updateDisplayName } from '../../lib/profile';
+import { setScanConsent } from '../../lib/ocr';
 import { supabase } from '../../lib/supabase';
 import { LanguageToggle, useI18n } from '../../lib/i18n';
 import { fetchToday, fetchStreak, DAILY_MINUTES_GOAL } from '../../lib/activity';
@@ -34,6 +35,8 @@ export default function ProfileScreen() {
 
   const [name, setName] = useState('');
   const [savingLevel, setSavingLevel] = useState(false);
+  const [consentBusy, setConsentBusy] = useState(false);
+  const [consentError, setConsentError] = useState<string | null>(null);
   const [minutes, setMinutes] = useState(0);
   const [cards, setCards] = useState(0);
   const [streak, setStreak] = useState(0);
@@ -107,6 +110,36 @@ export default function ProfileScreen() {
     await updateDisplayName(user.id, name);
     await refreshProfile();
   }, [user, name, profile?.display_name, refreshProfile]);
+
+  /** Turning consent on is immediate. Turning it off asks first, because scanning stops at once. */
+  const saveConsent = useCallback(async (granted: boolean) => {
+    if (!user) return;
+    setConsentBusy(true);
+    setConsentError(null);
+    const result = await setScanConsent(user.id, granted);
+    if (!result.ok) setConsentError(result.error);
+    await refreshProfile();
+    setConsentBusy(false);
+  }, [user, refreshProfile]);
+
+  const toggleScanConsent = useCallback(() => {
+    if (!user || !profile) return;
+    if (!profile.scan_consent_at) {
+      void saveConsent(true);
+      return;
+    }
+    Alert.alert(
+      t('Zustimmung widerrufen?', 'Withdraw consent?'),
+      t(
+        'Ab sofort werden keine Fotos mehr zur Auswertung gesendet. Scannen ist dann nicht möglich. Deine gespeicherten Wörter bleiben erhalten.',
+        'From now on, photos are no longer sent for analysis, and scanning stops. Words you have saved stay.',
+      ),
+      [
+        { text: t('Abbrechen', 'Cancel'), style: 'cancel' },
+        { text: t('Widerrufen', 'Withdraw'), style: 'destructive', onPress: () => { void saveConsent(false); } },
+      ],
+    );
+  }, [user, profile, saveConsent, t]);
 
   if (loading) {
     return (
@@ -222,6 +255,31 @@ export default function ProfileScreen() {
           </View>
         </View>
 
+        <View style={styles.gutter}>
+          <Eyebrow>{t('Fotos auswerten', 'Photo analysis')}</Eyebrow>
+          <View style={styles.consentRow}>
+            <Text style={styles.consentText}>
+              {t(
+                'Beim Scannen wird das Foto zur Auswertung an einen KI-Dienst gesendet. Gespeichert werden nur die erkannten Wörter.',
+                'When you scan, the photo is sent to an AI service for analysis. Only the words found are saved.',
+              )}
+            </Text>
+            {consentBusy
+              ? <ActivityIndicator color={Colors.textMuted} />
+              : (
+                <Switch
+                  value={!!profile?.scan_consent_at}
+                  onValueChange={toggleScanConsent}
+                  trackColor={{ false: Colors.surface3, true: Colors.purple }}
+                  thumbColor={Colors.white}
+                  accessibilityRole="switch"
+                  accessibilityLabel={t('Fotos zur Auswertung senden', 'Send photos for analysis')}
+                />
+              )}
+          </View>
+          {consentError ? <Text style={styles.consentError}>{consentError}</Text> : null}
+        </View>
+
         {/* Ranks lives inside Profil per design-spec.md §6.6 */}
         <View style={styles.gutter}>
           <Eyebrow>{t('Mehr', 'More')}</Eyebrow>
@@ -247,6 +305,9 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
+  consentRow: { flexDirection: 'row', alignItems: 'center', gap: Space.md },
+  consentText: { ...Type.caption, color: Colors.textMuted, flex: 1 },
+  consentError: { ...Type.caption, color: Colors.red },
   safe: { flex: 1, backgroundColor: Colors.bg },
   content: { paddingTop: Space.lg, paddingBottom: 40, gap: Space.xxl },
   gutter: { paddingHorizontal: Space.gutter, gap: Space.sm },
