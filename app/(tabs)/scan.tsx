@@ -192,8 +192,8 @@ export default function ScanScreen() {
         <View style={styles.center}>
           <Text style={styles.emptyTitle}>Fotos auswerten</Text>
           <Text style={styles.emptyBody}>
-            Zum Erkennen der Wörter wird dein Foto an einen KI-Dienst gesendet. Gespeichert werden nur die
-            erkannten Wörter, nicht das Foto. Du kannst deine Zustimmung jederzeit widerrufen.
+            Zum Erkennen der Wörter wird dein Foto an einen KI-Dienst gesendet, ebenso jedes Wort, das du
+            nachschlägst. Gespeichert werden nur die erkannten Wörter, nicht das Foto. Du kannst deine Zustimmung jederzeit widerrufen.
           </Text>
           {error ? <Text style={styles.error}>{error}</Text> : null}
           {consentBusy

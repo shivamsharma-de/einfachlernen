@@ -191,11 +191,9 @@ Deno.serve(async (req: Request) => {
     if (imageBase64.length > MAX_IMAGE_CHARS) return json({ error: 'image_too_large' }, 413);
   }
 
-  // Privacy: the photo leaves the device only after the learner has agreed (Einstellungen).
-  if (!isLookup) {
-    const { data: profile } = await admin.from('profiles').select('scan_consent_at').eq('id', userId).maybeSingle();
-    if (!profile?.scan_consent_at) return json({ error: 'consent_required' }, 403);
-  }
+  // Privacy: photos and typed words leave the device only after the learner has agreed (Einstellungen).
+  const { data: profile } = await admin.from('profiles').select('scan_consent_at').eq('id', userId).maybeSingle();
+  if (!profile?.scan_consent_at) return json({ error: 'consent_required' }, 403);
 
   // Rate limit: model calls are the expensive path.
   const hourAgo = new Date(Date.now() - 3_600_000).toISOString();

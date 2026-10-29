@@ -13,7 +13,6 @@
       "usesAppleSignIn": true,
       "infoPlist": {
         "NSCameraUsageDescription": "swypo nutzt die Kamera, um Wörter von einer Seite zu scannen.",
-        "NSPhotoLibraryUsageDescription": "swypo nutzt deine Fotos, um Wörter von einer Seite zu scannen.",
         "ITSAppUsesNonExemptEncryption": false
       },
       "config": {
@@ -27,8 +26,7 @@
       },
       "predictiveBackGestureEnabled": false,
       "permissions": [
-        "android.permission.CAMERA",
-        "android.permission.RECORD_AUDIO"
+        "android.permission.CAMERA"
       ]
     },
     "web": {

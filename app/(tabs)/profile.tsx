@@ -268,8 +268,8 @@ export default function ProfileScreen() {
           <View style={styles.consentRow}>
             <Text style={styles.consentText}>
               {t(
-                'Beim Scannen wird das Foto zur Auswertung an einen KI-Dienst gesendet. Gespeichert werden nur die erkannten Wörter.',
-                'When you scan, the photo is sent to an AI service for analysis. Only the words found are saved.',
+                'Beim Scannen wird das Foto zur Auswertung an einen KI-Dienst gesendet, ebenso jedes Wort, das du nachschlägst. Gespeichert werden nur die erkannten Wörter.',
+                'When you scan, the photo is sent to an AI service for analysis, and so is any word you look up. Only the words found are saved.',
               )}
             </Text>
             {consentBusy
@@ -288,19 +288,6 @@ export default function ProfileScreen() {
           {consentError ? <Text style={styles.consentError}>{consentError}</Text> : null}
         </View>
 
-        {/* Ranks lives inside Profil per design-spec.md §6.6 */}
-        <View style={styles.gutter}>
-          <Eyebrow>{t('Mehr', 'More')}</Eyebrow>
-          <TouchableOpacity
-            style={styles.linkRow}
-            onPress={() => router.push('/(tabs)/leaderboard')}
-            accessibilityRole="button"
-            accessibilityLabel={t('Rangliste öffnen', 'Open leaderboard')}
-          >
-            <Text style={styles.linkLabel}>{t('Rangliste', 'Leaderboard')}</Text>
-            <Text style={styles.linkChevron}>›</Text>
-          </TouchableOpacity>
-        </View>
 
         <View style={styles.gutter}>
           <PillButton label={t('Abmelden', 'Sign out')} variant="ghost" onPress={() => { void signOut(); }} />

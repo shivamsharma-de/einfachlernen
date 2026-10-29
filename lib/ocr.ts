@@ -55,7 +55,7 @@ interface ScanResponse {
 
 /** German messages for every code the server can return (scan-words/index.ts). */
 const MESSAGES: Record<string, string> = {
-  consent_required: 'Bitte stimme zuerst zu, dass Fotos zur Auswertung gesendet werden.',
+  consent_required: 'Bitte stimme zuerst zu, dass Fotos und Wörter zur Auswertung gesendet werden. Du findest das unter Profil.',
   rate_limited: 'Zu viele Scans. Versuche es in einer Stunde erneut.',
   model_busy: 'Die Texterkennung ist gerade ausgelastet. Versuche es gleich noch einmal.',
   model_failed: 'Texterkennung fehlgeschlagen. Prüfe deine Verbindung.',
