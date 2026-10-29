@@ -5,6 +5,7 @@ export { LevelChipRow } from './LevelChipRow';
 export { PillButton } from './PillButton';
 export type { PillVariant } from './PillButton';
 export { ProgressRing } from './ProgressRing';
+export { ScanProgress } from './ScanProgress';
 export { SectionShelf } from './SectionShelf';
 export { StatPair } from './StatPair';
 export { WordCard } from './WordCard';

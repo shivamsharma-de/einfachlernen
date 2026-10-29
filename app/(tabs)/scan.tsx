@@ -11,7 +11,7 @@ import {
 import { useRouter } from 'expo-router';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Colors, Type, Space, Radius, HIT, ARTICLE_COLOR } from '../../constants/Colors';
-import { Eyebrow, LevelBadge, PillButton } from '../../components';
+import { Eyebrow, LevelBadge, PillButton, ScanProgress } from '../../components';
 import { useAuth } from '../../context/auth';
 import { levelsOf } from '../../lib/profile';
 import {
@@ -41,6 +41,7 @@ export default function ScanScreen() {
   const [error, setError] = useState<string | null>(null);
   const [savedCount, setSavedCount] = useState(0);
   const [consentBusy, setConsentBusy] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const capture = useCallback(async () => {
     if (!cameraRef.current) return;
@@ -89,11 +90,11 @@ export default function ScanScreen() {
     if (catalogueIds.length + candidates.length === 0) return;
 
     setError(null);
-    setPhase('busy');
+    setSaving(true);
     const result = await importScanWords(outcome.scanId, catalogueIds, candidates);
+    setSaving(false);
     if (!result.ok) {
       setError(result.error);
-      setPhase('review');
       return;
     }
     setSavedCount(catalogueIds.length + candidates.length);
@@ -228,7 +229,7 @@ export default function ScanScreen() {
           )}
 
           <PillButton
-            label={chosen > 0 ? `${chosen} Wörter speichern` : 'Keine Wörter gewählt'}
+            label={saving ? 'Speichere…' : chosen > 0 ? `${chosen} Wörter speichern` : 'Keine Wörter gewählt'}
             onPress={() => { if (chosen > 0) void save(); }}
           />
           <PillButton label="Anderes Foto" variant="ghost" onPress={again} />
@@ -260,8 +261,7 @@ export default function ScanScreen() {
         <CameraView ref={cameraRef} style={StyleSheet.absoluteFill} facing="back" />
         {phase === 'busy' && (
           <View style={styles.busy}>
-            <ActivityIndicator color={Colors.white} />
-            <Text style={styles.busyText}>Erkenne Wörter…</Text>
+            <ScanProgress />
           </View>
         )}
       </View>
@@ -321,7 +321,6 @@ const styles = StyleSheet.create({
   hint: { ...Type.caption, color: Colors.textMuted, textAlign: 'center' },
   cameraWrap: { flex: 1, overflow: 'hidden', borderRadius: Radius.card, margin: Space.gutter, backgroundColor: Colors.surface },
   busy: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center', gap: Space.sm, backgroundColor: Colors.bg },
-  busyText: { ...Type.bodyL, color: Colors.white },
   controls: { padding: Space.gutter, gap: Space.md },
   review: { padding: Space.gutter, gap: Space.md, paddingBottom: 40 },
   title: { ...Type.title, color: Colors.white },
