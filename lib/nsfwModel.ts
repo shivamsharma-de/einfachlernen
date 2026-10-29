@@ -25,6 +25,29 @@ function bytesOfBase64(base64: string): ArrayBuffer {
   return bytes.buffer;
 }
 
+/** TensorFlow.js reads its platform helpers from a registered platform. tfjs-react-native
+ *  normally registers one; without it, the first call fails with "isTypedArray of undefined".
+ *  This registers the few helpers the model loader needs. UTF-8 is written by hand, so the
+ *  code does not depend on TextEncoder being present in the JavaScript engine. */
+const utf8Encode = (text: string): Uint8Array => {
+  const encoded = unescape(encodeURIComponent(text));
+  const bytes = new Uint8Array(encoded.length);
+  for (let i = 0; i < encoded.length; i++) bytes[i] = encoded.charCodeAt(i);
+  return bytes;
+};
+const utf8Decode = (bytes: Uint8Array): string => {
+  let binary = '';
+  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+  return decodeURIComponent(escape(binary));
+};
+tf.setPlatform('swypo-react-native', {
+  fetch: (input: RequestInfo | URL, init?: RequestInit) => fetch(input, init),
+  now: () => Date.now(),
+  encode: (text: string) => utf8Encode(text),
+  decode: (bytes: Uint8Array) => utf8Decode(bytes),
+  isTypedArray: (a: unknown): a is Uint8Array => ArrayBuffer.isView(a) && !(a instanceof DataView),
+});
+
 let modelPromise: Promise<tf.LayersModel> | null = null;
 
 /** Loads the model once and keeps it for the session. */
