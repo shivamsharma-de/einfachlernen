@@ -15,6 +15,7 @@ import Anthropic from 'npm:@anthropic-ai/sdk@^0.70.0';
 import { z } from 'npm:zod@^3.23.8';
 import { zodOutputFormat } from 'npm:@anthropic-ai/sdk@^0.70.0/helpers/zod';
 import { createClient } from 'npm:@supabase/supabase-js@^2.45.0';
+import { timedRequest, logModelCall } from '../_shared/timing.ts';
 
 const MODEL = 'claude-opus-5';
 
@@ -48,7 +49,7 @@ function json(body: unknown, status = 200): Response {
   });
 }
 
-Deno.serve(async (req: Request) => {
+async function handle(req: Request): Promise<Response> {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   if (req.method !== 'POST') return json({ error: 'method_not_allowed' }, 405);
 
@@ -101,6 +102,7 @@ Deno.serve(async (req: Request) => {
   const client = new Anthropic({ apiKey: anthropicKey });
 
   let parsed: z.infer<typeof EnrichmentSchema> | null = null;
+  const modelStarted = performance.now();
   try {
     const response = await client.messages.parse({
       model: MODEL,
@@ -127,6 +129,7 @@ Deno.serve(async (req: Request) => {
       },
     });
     parsed = response.parsed_output;
+    logModelCall('word-ai', modelStarted, response.usage);
   } catch (err) {
     console.error('anthropic error:', err);
     return json({ error: 'generation_failed' }, 502);
@@ -149,4 +152,6 @@ Deno.serve(async (req: Request) => {
   if (cacheError) console.warn('cache write failed:', cacheError.message);
 
   return json({ ...parsed, cached: false });
-});
+}
+
+Deno.serve((req: Request) => timedRequest('word-ai', req, handle));

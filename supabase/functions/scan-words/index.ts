@@ -23,6 +23,7 @@
 import { z } from 'npm:zod@^3.23.8';
 import { createClient } from 'npm:@supabase/supabase-js@^2.45.0';
 import { providerFromEnv, ProviderError, type JsonSchema } from '../_shared/vision.ts';
+import { timedRequest } from '../_shared/timing.ts';
 
 const LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'] as const;
 const TYPES = ['noun', 'verb', 'adjective', 'adverb', 'phrase', 'conjunction',
@@ -137,7 +138,7 @@ function variantsOf(lemma: string): string[] {
   return [...new Set([lemma, lower, cap])];
 }
 
-Deno.serve(async (req: Request) => {
+async function handle(req: Request): Promise<Response> {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   if (req.method !== 'POST') return json({ error: 'method_not_allowed' }, 405);
 
@@ -308,4 +309,6 @@ Deno.serve(async (req: Request) => {
     below_level: belowLevel,
     total_detected: totalDetected,
   });
-});
+}
+
+Deno.serve((req: Request) => timedRequest('scan-words', req, handle));
