@@ -28,6 +28,7 @@ import { supabase } from './supabase';
 import { toSRSState, type WordProgressRow } from './deck';
 import { INITIAL_SRS, isMastered, nextReviewDate, previewIntervals, schedule } from './srs';
 import { constrainedShuffle, mulberry32, reinsertIndex } from './shuffle';
+import { chunkIds, dueIdsInLevels } from './dueLevels';
 import { takeNewCards } from './newCards';
 import { localISODate } from './localdate';
 import { currentStudySessionId } from './activity';
@@ -69,8 +70,27 @@ function notReady<T>(): Result<T> {
 /** Re-exported from lib/shuffle.ts so the frontend has one import surface. */
 export { constrainedShuffle, mulberry32, reinsertIndex } from './shuffle';
 
-/** Cards whose next review has come due, most overdue first. */
-async function fetchDue(userId: string, limit: number): Promise<{ cards: DeckCard[]; progress: Map<string, WordProgressRow> }> {
+/** How many due progress rows to scan before the level filter. Due rows from unselected
+ *  levels are skipped, so the scan is wider than the cap the caller wants. */
+const DUE_SCAN_LIMIT = 1000;
+
+/** Loads deck words by id, in chunks, keyed by id. */
+async function deckWordsById(ids: string[]): Promise<Map<string, DeckWord>> {
+  const byId = new Map<string, DeckWord>();
+  for (const chunk of chunkIds(ids)) {
+    const { data, error } = await supabase.from('deck_words').select('*').in('id', chunk);
+    if (error) throw error;
+    for (const w of (data ?? []) as DeckWord[]) byId.set(w.id, w);
+  }
+  return byId;
+}
+
+/** Cards whose next review has come due, most overdue first, only from the selected levels (BUG-004). */
+async function fetchDue(
+  userId: string,
+  limit: number,
+  levels: CEFRLevel[],
+): Promise<{ cards: DeckCard[]; progress: Map<string, WordProgressRow> }> {
   const { data: rows, error } = await supabase
     .from('word_progress')
     .select('word_id, repetitions, interval_days, ease_factor, lapses, next_review_at, mastered')
@@ -78,28 +98,19 @@ async function fetchDue(userId: string, limit: number): Promise<{ cards: DeckCar
     .eq('mastered', false)
     .lte('next_review_at', todayISO())
     .order('next_review_at', { ascending: true })
-    .limit(limit);
+    .limit(DUE_SCAN_LIMIT);
   if (error) throw error;
 
-  const progress = new Map<string, WordProgressRow>(
+  // Most-overdue-first order from the progress query.
+  const rowById = new Map<string, WordProgressRow>(
     (rows ?? []).map((r) => [r.word_id as string, r as unknown as WordProgressRow]),
   );
-  if (progress.size === 0) return { cards: [], progress };
+  if (rowById.size === 0) return { cards: [], progress: new Map() };
 
-  const { data: words, error: wordsError } = await supabase
-    .from('deck_words')
-    .select('*')
-    .in('id', [...progress.keys()]);
-  if (wordsError) throw wordsError;
-
-  // Preserve the most-overdue-first order the progress query established; the
-  // `in` filter above does not guarantee it.
-  const byId = new Map((words ?? []).map((w) => [w.id as string, w as DeckWord]));
-  const cards: DeckCard[] = [];
-  for (const id of progress.keys()) {
-    const w = byId.get(id);
-    if (w) cards.push(toCard(w, progress.get(id)));
-  }
+  const words = await deckWordsById([...rowById.keys()]);
+  const ids = dueIdsInLevels([...rowById.keys()], words, levels, limit);
+  const progress = new Map<string, WordProgressRow>(ids.map((id) => [id, rowById.get(id)!]));
+  const cards = ids.map((id) => toCard(words.get(id)!, rowById.get(id)));
   return { cards, progress };
 }
 
@@ -125,7 +136,8 @@ export async function buildSession(
     const dailyNew = (profile?.daily_new_cards as number | undefined) ?? 10;
     const dailyPersonal = (profile?.daily_personal_cards as number | undefined) ?? 5;
 
-    const { cards: due } = await fetchDue(userId, maxCards);
+    const levels = Array.isArray(level) ? level : [level];
+    const { cards: due } = await fetchDue(userId, maxCards, levels);
 
     // New cards: the learner's central new words (ordered by frequency, already excluding
     // anything with progress) and their own scan imports not yet started (migration 020).
@@ -133,7 +145,6 @@ export async function buildSession(
     const room = Math.max(0, maxCards - due.length);
     let fresh: DeckCard[] = [];
     if (room > 0) {
-      const levels = Array.isArray(level) ? level : [level];
       const [central, personal] = await Promise.all([
         dailyNew > 0
           ? supabase.rpc('next_new_words', { p_levels: levels, p_limit: Math.min(room, dailyNew) })
@@ -511,8 +522,8 @@ export async function levelThemes(level: CEFRLevel | CEFRLevel[]): Promise<Resul
   };
 }
 
-/** Words due today for the signed-in learner, most overdue first, capped for display. */
-export async function dueWords(limit = 200): Promise<Result<DeckWord[]>> {
+/** Words due today for the signed-in learner in the selected levels, most overdue first, capped for display (BUG-004). */
+export async function dueWords(levels: CEFRLevel[], limit = 200): Promise<Result<DeckWord[]>> {
   try {
     const { data: rows, error } = await supabase
       .from('word_progress')
@@ -520,19 +531,14 @@ export async function dueWords(limit = 200): Promise<Result<DeckWord[]>> {
       .eq('mastered', false)
       .lte('next_review_at', localISODate())
       .order('next_review_at', { ascending: true })
-      .limit(limit);
+      .limit(DUE_SCAN_LIMIT);
     if (error) throw error;
     const ids = (rows ?? []).map((r) => r.word_id as string);
     if (ids.length === 0) return { ok: true, data: [] };
 
-    const { data: words, error: wordsError } = await supabase
-      .from('deck_words')
-      .select('*')
-      .in('id', ids);
-    if (wordsError) throw wordsError;
-
-    const byId = new Map((words ?? []).map((w) => [w.id as string, w as DeckWord]));
-    return { ok: true, data: ids.map((id) => byId.get(id)).filter((w): w is DeckWord => !!w) };
+    const words = await deckWordsById(ids);
+    const picked = dueIdsInLevels(ids, words, levels, limit);
+    return { ok: true, data: picked.map((id) => words.get(id)!) };
   } catch (err) {
     console.warn('dueWords:', err);
     return { ok: false, error: germanError(err) };
