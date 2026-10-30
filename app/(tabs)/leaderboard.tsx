@@ -106,8 +106,8 @@ export default function LeaderboardScreen() {
           <View style={styles.myRankRow}>
             <Text style={styles.myRankNum}>#5</Text>
             <View>
-              <Text style={styles.myRankXp}>8,340 XP</Text>
-              <Text style={styles.myRankGap}>1,460 XP to reach #4</Text>
+              <Text style={styles.myRankXp}>8,340 Punkte</Text>
+              <Text style={styles.myRankGap}>1,460 Punkte bis Platz #4</Text>
             </View>
           </View>
         </View>
@@ -150,7 +150,7 @@ function PlayerRow({ player }: { player: Player }) {
         <Text style={styles.rowMeta}>{player.flag} {player.level} · 🔥 {player.streak} days</Text>
       </View>
 
-      <Text style={styles.rowXp}>{player.xp.toLocaleString()} XP</Text>
+      <Text style={styles.rowXp}>{player.xp.toLocaleString()} Punkte</Text>
     </View>
   );
 }

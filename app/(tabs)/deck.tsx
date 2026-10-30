@@ -128,7 +128,7 @@ export default function DeckScreen() {
   if (deck.status === 'finished' || !deck.current) {
     return (
       <StateScreen
-        eyebrow={`+${deck.sessionXp} XP`}
+        eyebrow={`+${deck.sessionXp} Punkte`}
         title="Sitzung beendet"
         body={`${deck.reviewed} ${deck.reviewed === 1 ? 'Karte' : 'Karten'} wiederholt.`}
         action={{ label: 'Weiter lernen', onPress: deck.rebuild }}
@@ -142,7 +142,7 @@ export default function DeckScreen() {
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
-        <Eyebrow right={<Text style={styles.xp}>+{deck.sessionXp} XP</Text>}>
+        <Eyebrow right={<Text style={styles.xp}>+{deck.sessionXp} Punkte</Text>}>
           {`${deck.position} von ${deck.total}`}
         </Eyebrow>
         <View style={styles.barBg}>

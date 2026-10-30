@@ -199,8 +199,8 @@ export default function TestScreen() {
           <Text style={styles.resultScore}>{result.correct} / {result.total}</Text>
           <Text style={styles.body}>
             {result.perfect
-              ? t('Alles richtig: +10 XP extra.', 'All correct: +10 bonus XP.')
-              : t(`+${xp} XP in diesem Test`, `+${xp} XP from this test`)}
+              ? t('Alles richtig: +10 Punkte extra.', 'All correct: +10 bonus points.')
+              : t(`+${xp} Punkte in diesem Test`, `+${xp} points from this test`)}
           </Text>
           {lights && lights.studied > 0 && (
             <View style={styles.lightsBox}>
