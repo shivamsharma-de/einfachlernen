@@ -106,3 +106,15 @@ export async function searchDictionary(
     ],
   };
 }
+
+/** Cumulative totals for the learner, across all scans: words saved to the personal dictionary, and
+ *  words detected on pages (summed over every scan). Not limited to one session. */
+export async function fetchScanTotals(): Promise<{ ok: true; saved: number; detected: number } | { ok: false }> {
+  const [saved, scans] = await Promise.all([
+    supabase.from('user_words').select('id', { count: 'exact', head: true }),
+    supabase.from('scan_results').select('total_detected'),
+  ]);
+  if (saved.error || scans.error) return { ok: false };
+  const detected = (scans.data ?? []).reduce((sum, row) => sum + Number(row.total_detected ?? 0), 0);
+  return { ok: true, saved: saved.count ?? 0, detected };
+}

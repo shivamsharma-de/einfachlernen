@@ -21,6 +21,7 @@ import {
 import type { CEFRLevel } from '../../types/index';
 import { track, type ErrorCode } from '../../lib/analytics';
 import { measurePage, getLastMeasureError } from '../../lib/pageMeasure';
+import { fetchScanTotals } from '../../lib/dictionary';
 import { decidePage, GATE_MESSAGES, type BlockReason } from '../../lib/pageGate';
 
 type Phase = 'idle' | 'busy' | 'review' | 'saved';
@@ -52,6 +53,7 @@ export default function ScanScreen() {
   const [error, setError] = useState<string | null>(null);
   const [savedCount, setSavedCount] = useState(0);
   const [consentBusy, setConsentBusy] = useState(false);
+  const [totals, setTotals] = useState<{ saved: number; detected: number } | null>(null);
   const [saving, setSaving] = useState(false);
 
   /** Shows an error and records its code. The text itself is never tracked. */
@@ -163,6 +165,15 @@ export default function ScanScreen() {
   }, []);
 
   useEffect(() => { track('scan_opened'); }, []);
+
+  // Cumulative totals for this learner, refreshed when the screen state changes.
+  useEffect(() => {
+    if (!user) return;
+    void (async () => {
+      const res = await fetchScanTotals();
+      if (res.ok) setTotals({ saved: res.saved, detected: res.detected });
+    })();
+  }, [user, phase]);
 
   // ─── Permissions and consent ─────────────────────────────────────────────
 
@@ -311,6 +322,11 @@ export default function ScanScreen() {
       </View>
       <View style={styles.controls}>
         {error ? <Text style={styles.error}>{error}</Text> : <Text style={styles.hint}>Halte die Seite ruhig ins Bild.</Text>}
+        {totals && (
+          <Text style={styles.totals}>
+            Insgesamt: {totals.saved} Wörter in deinem Wörterbuch · {totals.detected} erkannt in allen Scans
+          </Text>
+        )}
         <PillButton label="Foto aufnehmen" onPress={() => { if (phase === 'idle') void capture(); }} />
         <PillButton label="Mein Wörterbuch" variant="ghost" onPress={() => router.push('/my-words')} />
       </View>
@@ -363,6 +379,7 @@ const styles = StyleSheet.create({
   emptyBody: { ...Type.body, color: Colors.textMuted, textAlign: 'center' },
   error: { ...Type.caption, color: Colors.red, textAlign: 'center' },
   hint: { ...Type.caption, color: Colors.textMuted, textAlign: 'center' },
+  totals: { ...Type.meta, color: Colors.white, textAlign: 'center' },
   cameraWrap: { flex: 1, overflow: 'hidden', borderRadius: Radius.card, margin: Space.gutter, backgroundColor: Colors.surface },
   busy: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center', gap: Space.sm, backgroundColor: Colors.bg },
   controls: { padding: Space.gutter, gap: Space.md },
