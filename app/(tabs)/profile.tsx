@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, SafeAreaView, TextInput,
   ActivityIndicator, TouchableOpacity,
-  Alert, Switch,
+  Alert, Switch, Image, Linking,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Type, Space, Radius, HIT } from '../../constants/Colors';
@@ -21,6 +21,7 @@ import { track } from '../../lib/analytics';
 import { fetchToday, fetchStreak, DAILY_MINUTES_GOAL } from '../../lib/activity';
 import { stufe } from '../../lib/progress';
 import { CEFRLevel } from '../../types';
+import { SUPPORT_EMAIL, SUPPORT_MAILTO } from '../../hooks/links';
 
 const LEVELS: readonly CEFRLevel[] = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 
@@ -162,6 +163,16 @@ export default function ProfileScreen() {
       ],
     );
   }, [user, profile, saveConsent, t]);
+
+  /** Opens a new mail to support. Without a mail app the learner gets the address to copy. */
+  const emailSupport = useCallback(() => {
+    void Linking.openURL(SUPPORT_MAILTO).catch(() => {
+      Alert.alert(
+        t('E-Mail nicht möglich', 'Email not available'),
+        t(`Schreib uns an ${SUPPORT_EMAIL}.`, `Write to us at ${SUPPORT_EMAIL}.`),
+      );
+    });
+  }, [t]);
 
   if (loading) {
     return (
@@ -334,8 +345,38 @@ export default function ProfileScreen() {
 
 
         <View style={styles.gutter}>
+          <TouchableOpacity
+            onPress={() => router.push('/about')}
+            style={styles.linkRow}
+            accessibilityRole="link"
+            accessibilityLabel={t('Über swypo', 'About swypo')}
+          >
+            <Text style={styles.linkLabel}>{t('Über swypo', 'About swypo')}</Text>
+            <Text style={styles.linkChevron}>›</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.gutter}>
           <PillButton label={t('Abmelden', 'Sign out')} variant="ghost" onPress={() => { void signOut(); }} />
           <PillButton label={t('Konto löschen', 'Delete account')} variant="ghost" onPress={confirmDelete} />
+        </View>
+
+        {/* Footer: logo and support address. The address opens a new mail to support. */}
+        <View style={styles.footer}>
+          <Image
+            source={require('../../assets/icon.png')}
+            style={styles.footerLogo}
+            accessibilityIgnoresInvertColors
+            accessibilityLabel="swypo Logo"
+          />
+          <TouchableOpacity
+            onPress={emailSupport}
+            style={styles.footerEmail}
+            accessibilityRole="link"
+            accessibilityLabel={t(`E-Mail an ${SUPPORT_EMAIL} schreiben`, `Email ${SUPPORT_EMAIL}`)}
+          >
+            <Text style={styles.footerEmailText}>{SUPPORT_EMAIL}</Text>
+          </TouchableOpacity>
         </View>
 
       </ScrollView>
@@ -398,6 +439,11 @@ const makeStyles = (c: ColorTokens) => StyleSheet.create({
   },
   linkLabel: { ...Type.body, color: c.text },
   linkChevron: { ...Type.title, fontSize: 22, lineHeight: 24, color: c.textMuted },
+
+  footer: { alignItems: 'center', gap: Space.sm, paddingTop: Space.lg },
+  footerLogo: { width: 64, height: 64, borderRadius: 14 },
+  footerEmail: { minHeight: HIT, minWidth: HIT, justifyContent: 'center', paddingHorizontal: Space.md },
+  footerEmailText: { ...Type.caption, color: c.purple, textDecorationLine: 'underline' },
 
   emptyTitle: { ...Type.title, fontSize: 24, lineHeight: 28, color: c.text, textAlign: 'center' },
   emptyBody: { ...Type.body, color: c.textMuted, textAlign: 'center' },

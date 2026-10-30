@@ -176,3 +176,17 @@ switching, the default lens, and the Android fallback (control hidden, `selected
 
 - **FEAT-002 "XP" → "Punkte".** Display labels only; stored fields (`xp`, `xp_earned`, `xp` in RPC results) unchanged. Explanation text added on Fortschritt.
 - **FEAT-003 home heading.** "Swypo." is the heading; the German greeting sits below it as subtext, English greeting stays as caption.
+## FEAT-004 / FEAT-005 · Settings footer, About screen
+
+- **Footer** on the Profil tab (the Settings page): app icon from `assets/icon.png` and
+  `support@swypo.app`, which opens `mailto:` through `Linking`.
+- **Über swypo** row on Profil opens `app/about.tsx`: Version (`expo-constants`), Build
+  (`expo-application` `nativeBuildVersion`), then Datenschutzerklärung, Drittanbieter-Lizenzen,
+  Nutzungsbedingungen, Plattformregeln, Support. Each opens in `expo-web-browser`
+  (`openBrowserAsync`, already installed).
+- All URLs and the support address live in `hooks/links.ts` (`LINKS`, `SUPPORT_EMAIL`).
+
+Assumption: there is no owned `config/` or `constants/` path besides `constants/Colors.ts`, so the
+config module sits in `hooks/`. Lead may move it.
+
+Verified: `npm run typecheck`, `npm test`, `npm run bundle` (iOS export). Not run on a device.
