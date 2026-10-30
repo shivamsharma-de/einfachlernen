@@ -10,6 +10,7 @@ import { Eyebrow, PillButton, StatPair } from '../../components';
 import { useAuth } from '../../context/auth';
 import { levelsOf, updateLevels, updateDisplayName } from '../../lib/profile';
 import { setScanConsent } from '../../lib/ocr';
+import { saveReplayConsent } from '../../lib/profile';
 import { supabase } from '../../lib/supabase';
 import { LanguageToggle, useI18n } from '../../lib/i18n';
 import { track } from '../../lib/analytics';
@@ -260,6 +261,33 @@ export default function ProfileScreen() {
                 label={`XP · Stufe ${stufe(profile?.xp ?? 0)}`}
               />
             </View>
+          </View>
+        </View>
+
+        <View style={styles.gutter}>
+          <Eyebrow>{t('Bildschirmaufzeichnung', 'Screen recording')}</Eyebrow>
+          <View style={styles.consentRow}>
+            <Text style={styles.consentText}>
+              {t(
+                'Wir zeichnen Bildschirmabläufe auf, um die App zu verbessern. Text und Bilder werden auf deinem Gerät unkenntlich gemacht, bevor etwas gesendet wird.',
+                'We record screen flows to improve the app. Text and images are blacked out on your device before anything is sent.',
+              )}
+            </Text>
+            <Switch
+              value={!!profile?.replay_consent_at}
+              onValueChange={(next) => {
+                if (!user) return;
+                void (async () => {
+                  const res = await saveReplayConsent(user.id, next);
+                  if (res.error) setConsentError(res.error);
+                  await refreshProfile();
+                })();
+              }}
+              trackColor={{ false: Colors.surface3, true: Colors.purple }}
+              thumbColor={Colors.white}
+              accessibilityRole="switch"
+              accessibilityLabel={t('Bildschirmaufzeichnung erlauben', 'Allow screen recording')}
+            />
           </View>
         </View>
 

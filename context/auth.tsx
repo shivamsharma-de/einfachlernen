@@ -7,7 +7,7 @@ import * as Crypto from 'expo-crypto';
 import { flushReviews } from '../lib/api';
 import { updateDisplayName } from '../lib/profile';
 import { supabase, Profile } from '../lib/supabase';
-import { identify, reset, track, type SignInFailReason, type SignInMethod } from '../lib/analytics';
+import { identify, reset, setReplayConsent, track, type SignInFailReason, type SignInMethod } from '../lib/analytics';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -71,6 +71,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .eq('id', userId)
       .single();
     setProfile(data ?? null);
+    // Replay runs only while the learner has agreed to it on this account.
+    setReplayConsent(!!data?.replay_consent_at);
     setLoading(false);
   }
 

@@ -97,3 +97,16 @@ describe('track', () => {
     expect(() => track('error_shown', { area: 'deck', error_code: 'Fehler im Netz' as never })).not.toThrow();
   });
 });
+
+describe('session replay masking', () => {
+  it('masks all text, images and sandboxed views, and records no taps or console logs', async () => {
+    const { REPLAY_CONFIG } = await import('../analytics');
+    expect(REPLAY_CONFIG).toEqual({
+      maskAllTextInputs: true,
+      maskAllImages: true,
+      maskAllSandboxedViews: true,
+      captureTouches: false,
+      captureLog: false,
+    });
+  });
+});

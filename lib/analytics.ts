@@ -185,6 +185,16 @@ const HOST = (process.env.EXPO_PUBLIC_POSTHOG_HOST ?? '').trim() || 'https://eu.
 const IS_DEV = typeof __DEV__ !== 'undefined' && __DEV__;
 const DEV_ON = (process.env.EXPO_PUBLIC_ANALYTICS_IN_DEV ?? '').trim() === 'true';
 
+/** Session replay masking. Text, images and sandboxed views are masked on the phone before anything
+ *  is uploaded. Taps and console logs are not recorded, because they can carry learner content. */
+export const REPLAY_CONFIG = {
+  maskAllTextInputs: true,
+  maskAllImages: true,
+  maskAllSandboxedViews: true,
+  captureTouches: false,
+  captureLog: false,
+} as const;
+
 /** Null when there is no key or this is a dev build. Every call below is then a no-op. */
 const client: PostHog | null = (() => {
   if (!KEY || (IS_DEV && !DEV_ON)) return null;
@@ -193,6 +203,9 @@ const client: PostHog | null = (() => {
       host: HOST,
       // The catalogue is the whole event list. Lifecycle events are not in it.
       captureAppLifecycleEvents: false,
+      // Replay is off at setup and started only when the learner has agreed (see setReplayConsent).
+      enableSessionReplay: false,
+      sessionReplayConfig: { ...REPLAY_CONFIG },
     });
   } catch {
     return null;
@@ -221,7 +234,18 @@ export function identify(userId: string): void {
 export function reset(): void {
   if (!client) return;
   identifiedAs = null;
-  safely(() => client.reset());
+  safely(() => {
+    void client.stopSessionRecording();
+    client.reset();
+  });
+}
+
+/** Starts or stops session replay for this learner. Replay runs only while the learner has agreed. */
+export function setReplayConsent(granted: boolean): void {
+  if (!client) return;
+  safely(() => {
+    void (granted ? client.startSessionRecording() : client.stopSessionRecording());
+  });
 }
 
 type TrackArgs<E extends AnalyticsEventName> = AnalyticsEventMap[E] extends null

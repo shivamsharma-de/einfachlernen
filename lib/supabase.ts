@@ -31,6 +31,8 @@ export type Profile = {
   ui_lang: 'de' | 'en' | null;
   /** When the learner agreed to send scanned photos for word extraction. null = not agreed. */
   scan_consent_at: string | null;
+  /** When the learner agreed to session replay (migration 022). null = not agreed. */
+  replay_consent_at: string | null;
   xp: number;
   streak: number;
   last_active_date: string | null;

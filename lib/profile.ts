@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase, Profile } from './supabase';
 import { CEFRLevel } from '../types';
+import { setReplayConsent } from './analytics';
 
 /** Profile is the single source of truth for the user's CEFR level (PRD v2 D1).
  *  Nothing else in the app may hold its own level state. */
@@ -84,4 +85,15 @@ export async function completeOnboarding(
 
   const { error } = await supabase.from('profiles').update(patch).eq('id', userId);
   return error ? { error: error.message } : {};
+}
+
+/** Records (or withdraws) the learner's agreement to session replay, and starts or stops it now. */
+export async function saveReplayConsent(userId: string, granted: boolean): Promise<{ error?: string }> {
+  const { error } = await supabase
+    .from('profiles')
+    .update({ replay_consent_at: granted ? new Date().toISOString() : null })
+    .eq('id', userId);
+  if (error) return { error: 'Einstellung konnte nicht gespeichert werden.' };
+  setReplayConsent(granted);
+  return {};
 }
