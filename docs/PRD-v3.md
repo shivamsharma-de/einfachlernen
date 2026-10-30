@@ -175,9 +175,10 @@ level switch (F2.4), daily new-card setting, sign out (F1.4), today's minutes/ca
 
 ### F7 — Analytics · P1
 
-PostHog events: `signed_in{provider}`, `onboarding_completed{level}`, `session_started{due,new}`,
-`card_graded{grade,origin}`, `deck_shuffled`, `scan_started{pages}`, `scan_completed{shown,new,ms}`,
-`scan_imported{count}`. No word text or images in analytics.
+PostHog events are the typed catalogue in `lib/analytics.ts` (`AnalyticsEventMap`), with timing
+properties on deck, test and scan. The full list, properties and insights are in
+`docs/runbooks/analytics.md`. Only numbers, booleans and fixed enums leave the device; no word text,
+sentence, image or name.
 
 ---
 
