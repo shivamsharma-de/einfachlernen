@@ -113,7 +113,7 @@ export default function HomeScreen() {
     setLoading(true);
     void (async () => {
       const lvls = levelKey.split(',') as typeof levels;
-      const [themeResult, dueResult, lightResult] = await Promise.all([levelThemes(lvls), dueWords(), fetchLights(lvls)]);
+      const [themeResult, dueResult, lightResult] = await Promise.all([levelThemes(lvls), dueWords(lvls), fetchLights(lvls)]);
       if (lightResult.ok) setLights(lightResult.data);
       if (cancelled) return;
       setThemes(themeResult.ok ? themeResult.data : []);
