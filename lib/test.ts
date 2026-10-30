@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from './supabase';
 import { localISODate } from './localdate';
 import { Outbox, type SendResult } from './outbox';
+import { withTimeout } from './withTimeout';
 import type { CEFRLevel } from '../types';
 import type { Result } from '../types/contracts';
 
@@ -53,12 +54,20 @@ function outboxFor(userId: string): Outbox<Pending> {
 const germanError = (msg: string) =>
   /fetch|network|timeout/i.test(msg) ? 'Keine Verbindung. Bitte später erneut versuchen.' : 'Der Test konnte nicht geladen werden.';
 
+/** The server builds a round in one call. Past this, the screen shows an error instead of spinning forever. */
+const START_TIMEOUT_MS = 15_000;
+
 export async function startTest(levels: CEFRLevel[], count = 10): Promise<Result<TestStart>> {
-  const { data, error } = await supabase.rpc('start_test', {
-    p_levels: levels,
-    p_count: count,
-    p_local_day: localISODate(),
-  });
+  let response;
+  try {
+    response = await withTimeout(
+      supabase.rpc('start_test', { p_levels: levels, p_count: count, p_local_day: localISODate() }),
+      START_TIMEOUT_MS,
+    );
+  } catch (e) {
+    return { ok: false, error: germanError(e instanceof Error ? e.message : String(e)) };
+  }
+  const { data, error } = response;
   if (error) {
     if (/not_enough_material/.test(error.message)) {
       return { ok: false, error: 'Noch nicht genug Wörter für einen Test. Lerne zuerst ein paar Karten.' };
