@@ -18,8 +18,8 @@ export function SessionTrackingPrompt(props: { visible: boolean; onChoose: (gran
               'We share usage data with our provider PostHog (EU servers), so we can see where learners get stuck. This includes screen recordings, with text and images blacked out on your device. We use your account ID, not your name or email address. You can change this at any time in Profil.',
             )}
           </Text>
-          <PillButton label={t('Zustimmen', 'Agree')} onPress={() => props.onChoose(true)} />
-          <PillButton label={t('Nicht jetzt', 'Not now')} variant="ghost" onPress={() => props.onChoose(false)} />
+          <PillButton label={t('Einschalten', 'Turn on')} onPress={() => props.onChoose(true)} />
+          <PillButton label={t('Ausschalten', 'Turn off')} variant="ghost" onPress={() => props.onChoose(false)} />
         </View>
       </View>
     </Modal>

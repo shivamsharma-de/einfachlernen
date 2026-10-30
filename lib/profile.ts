@@ -87,6 +87,12 @@ export async function completeOnboarding(
   return error ? { error: error.message } : {};
 }
 
+/** Records that the learner finished the first-run tour, so it is not shown again. */
+export async function completeTour(userId: string): Promise<{ error?: string }> {
+  const { error } = await supabase.from('profiles').update({ tour_completed_at: new Date().toISOString() }).eq('id', userId);
+  return error ? { error: 'Speichern fehlgeschlagen.' } : {};
+}
+
 /** Saves the session tracking answer: on or off, and that the question was answered. Turns recording on or off now. */
 export async function saveSessionTracking(userId: string, granted: boolean): Promise<{ error?: string }> {
   const now = new Date().toISOString();

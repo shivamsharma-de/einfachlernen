@@ -35,6 +35,8 @@ export type Profile = {
   replay_consent_at: string | null;
   /** When the session tracking question was answered (migration 023). Set whatever the answer. */
   session_tracking_asked_at: string | null;
+  /** When the first-run tour was finished (migration 024). null = not finished. */
+  tour_completed_at: string | null;
   xp: number;
   streak: number;
   last_active_date: string | null;

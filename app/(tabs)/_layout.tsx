@@ -3,8 +3,8 @@ import { useAuth } from '../../context/auth';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Type } from '../../constants/Colors';
 import { View, StyleSheet, Platform, type ColorValue } from 'react-native';
-import { SessionTrackingPrompt } from '../../components';
-import { saveSessionTracking } from '../../lib/profile';
+import { OnboardingTour, SessionTrackingPrompt } from '../../components';
+import { completeTour, saveSessionTracking } from '../../lib/profile';
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -23,8 +23,14 @@ function TabIcon({ name, color, focused }: { name: IoniconsName; color: ColorVal
 export default function TabLayout() {
   const { loading, user, profile, refreshProfile } = useAuth();
 
-  // Accounts onboarded before the session tracking question existed are asked once, here.
-  const askTracking = !!profile && profile.onboarding_complete && !profile.session_tracking_asked_at;
+  // First run after onboarding: the six-step tour, then the session tracking question (once each).
+  const askTour = !!profile && profile.onboarding_complete && !profile.tour_completed_at;
+  const askTracking = !!profile && profile.onboarding_complete && !!profile.tour_completed_at && !profile.session_tracking_asked_at;
+  const finishTour = async () => {
+    if (!user) return;
+    await completeTour(user.id);
+    await refreshProfile();
+  };
   const chooseTracking = async (granted: boolean) => {
     if (!user) return;
     await saveSessionTracking(user.id, granted);
@@ -97,6 +103,7 @@ export default function TabLayout() {
       <Tabs.Screen name="quiz" options={{ href: null }} />
       <Tabs.Screen name="leaderboard" options={{ href: null }} />
     </Tabs>
+    <OnboardingTour visible={askTour} onFinish={() => { void finishTour(); }} />
     <SessionTrackingPrompt visible={askTracking} onChoose={(granted) => { void chooseTracking(granted); }} />
     </>
   );
