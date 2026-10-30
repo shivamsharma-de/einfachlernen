@@ -11,8 +11,9 @@ export default function AuthCallback() {
 
   useEffect(() => {
     if (code) {
+      // Back to the root gate, which waits for the profile and sends a new learner to onboarding.
       supabase.auth.exchangeCodeForSession(code).finally(() => {
-        router.replace('/(tabs)');
+        router.replace('/');
       });
     } else {
       router.replace('/(auth)/login');
