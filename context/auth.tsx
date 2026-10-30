@@ -46,10 +46,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       else setLoading(false);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
+        // A fresh sign-in must not let the root gate decide before its profile has loaded:
+        // the profile is still null then, and the gate would send a new learner to the tabs
+        // instead of onboarding. Hold `loading` until fetchProfile has set the profile.
+        if (event === 'SIGNED_IN') setLoading(true);
         fetchProfile(session.user.id);
         // The Supabase user id only. The email is never sent to analytics.
         identify(session.user.id);
