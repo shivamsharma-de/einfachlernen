@@ -144,3 +144,18 @@ One detail that will bite elsewhere: RN 0.86's types no longer declare
   local advance was reasoned through, the server reconciliation was not exercised.
 - **Android.** iOS only so far. `backfaceVisibility` is unreliable there, so the faces also
   cross-fade on opacity; worth one look on a device.
+
+## FEAT-004 / FEAT-005 · Settings footer, About screen
+
+- **Footer** on the Profil tab (the Settings page): app icon from `assets/icon.png` and
+  `support@swypo.app`, which opens `mailto:` through `Linking`.
+- **Über swypo** row on Profil opens `app/about.tsx`: Version (`expo-constants`), Build
+  (`expo-application` `nativeBuildVersion`), then Datenschutzerklärung, Drittanbieter-Lizenzen,
+  Nutzungsbedingungen, Plattformregeln, Support. Each opens in `expo-web-browser`
+  (`openBrowserAsync`, already installed).
+- All URLs and the support address live in `hooks/links.ts` (`LINKS`, `SUPPORT_EMAIL`).
+
+Assumption: there is no owned `config/` or `constants/` path besides `constants/Colors.ts`, so the
+config module sits in `hooks/`. Lead may move it.
+
+Verified: `npm run typecheck`, `npm test`, `npm run bundle` (iOS export). Not run on a device.
