@@ -87,11 +87,12 @@ export async function completeOnboarding(
   return error ? { error: error.message } : {};
 }
 
-/** Records (or withdraws) the learner's agreement to session replay, and starts or stops it now. */
-export async function saveReplayConsent(userId: string, granted: boolean): Promise<{ error?: string }> {
+/** Saves the session tracking answer: on or off, and that the question was answered. Turns recording on or off now. */
+export async function saveSessionTracking(userId: string, granted: boolean): Promise<{ error?: string }> {
+  const now = new Date().toISOString();
   const { error } = await supabase
     .from('profiles')
-    .update({ replay_consent_at: granted ? new Date().toISOString() : null })
+    .update({ replay_consent_at: granted ? now : null, session_tracking_asked_at: now })
     .eq('id', userId);
   if (error) return { error: 'Einstellung konnte nicht gespeichert werden.' };
   setReplayConsent(granted);

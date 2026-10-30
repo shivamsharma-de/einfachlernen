@@ -6,6 +6,7 @@ export { PillButton } from './PillButton';
 export type { PillVariant } from './PillButton';
 export { ProgressRing } from './ProgressRing';
 export { ScanProgress } from './ScanProgress';
+export { SessionTrackingPrompt } from './SessionTrackingPrompt';
 export { SectionShelf } from './SectionShelf';
 export { StatPair } from './StatPair';
 export { WordCard } from './WordCard';

@@ -33,6 +33,8 @@ export type Profile = {
   scan_consent_at: string | null;
   /** When the learner agreed to session replay (migration 022). null = not agreed. */
   replay_consent_at: string | null;
+  /** When the session tracking question was answered (migration 023). Set whatever the answer. */
+  session_tracking_asked_at: string | null;
   xp: number;
   streak: number;
   last_active_date: string | null;

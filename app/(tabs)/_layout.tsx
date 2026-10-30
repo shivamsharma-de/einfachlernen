@@ -3,6 +3,8 @@ import { useAuth } from '../../context/auth';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Type } from '../../constants/Colors';
 import { View, StyleSheet, Platform, type ColorValue } from 'react-native';
+import { SessionTrackingPrompt } from '../../components';
+import { saveSessionTracking } from '../../lib/profile';
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -19,13 +21,22 @@ function TabIcon({ name, color, focused }: { name: IoniconsName; color: ColorVal
  *  Phrases becomes "Wörter"; the quiz and the leaderboard stay as routes but
  *  leave the bar: quiz is entered from Home, ranks from Profil. */
 export default function TabLayout() {
-  const { loading, user } = useAuth();
+  const { loading, user, profile, refreshProfile } = useAuth();
+
+  // Accounts onboarded before the session tracking question existed are asked once, here.
+  const askTracking = !!profile && profile.onboarding_complete && !profile.session_tracking_asked_at;
+  const chooseTracking = async (granted: boolean) => {
+    if (!user) return;
+    await saveSessionTracking(user.id, granted);
+    await refreshProfile();
+  };
 
   // The root gate only runs when the app opens. Signing out while the tabs are
   // showing leaves them mounted, so this sends the learner back to login.
   if (!loading && !user) return <Redirect href="/(auth)/login" />;
 
   return (
+    <>
     <Tabs
       screenOptions={{
         headerShown: false,
@@ -86,6 +97,8 @@ export default function TabLayout() {
       <Tabs.Screen name="quiz" options={{ href: null }} />
       <Tabs.Screen name="leaderboard" options={{ href: null }} />
     </Tabs>
+    <SessionTrackingPrompt visible={askTracking} onChoose={(granted) => { void chooseTracking(granted); }} />
+    </>
   );
 }
 

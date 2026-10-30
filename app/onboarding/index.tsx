@@ -16,7 +16,6 @@
  */
 import React, { useCallback, useState } from 'react';
 import {
-  Modal,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -27,11 +26,11 @@ import {
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, HIT, Radius, Space, Type } from '../../constants/Colors';
-import { Eyebrow, LevelBadge, PillButton } from '../../components';
+import { Eyebrow, LevelBadge, PillButton, SessionTrackingPrompt } from '../../components';
 import { useAuth } from '../../context/auth';
 import { CEFR_LEVELS, isMostlyEstimated, useLevelCounts, type LevelCount } from '../../hooks/useLevelCounts';
 import { formatCountDe } from '../../hooks/grammar';
-import { completeOnboarding, levelsOf, saveReplayConsent, updateLevels } from '../../lib/profile';
+import { completeOnboarding, levelsOf, saveSessionTracking, updateLevels } from '../../lib/profile';
 import { LanguageToggle, useI18n } from '../../lib/i18n';
 import { track } from '../../lib/analytics';
 import type { CEFRLevel } from '../../types';
@@ -95,7 +94,7 @@ export default function LevelSelectionScreen() {
   const chooseRecording = useCallback(async (granted: boolean) => {
     if (!user) return;
     setAskRecording(false);
-    await saveReplayConsent(user.id, granted);
+    await saveSessionTracking(user.id, granted);
     await save();
   }, [user, save]);
 
@@ -106,21 +105,7 @@ export default function LevelSelectionScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <Modal visible={askRecording} transparent animationType="fade" onRequestClose={() => setAskRecording(false)}>
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>{t('Bildschirmaufzeichnung', 'Screen recording')}</Text>
-            <Text style={styles.modalBody}>
-              {t(
-                'Wir teilen Analysedaten mit unserem Dienstleister PostHog (Server in der EU), damit wir verstehen, wo Lernende hängen bleiben. Dazu gehören Bildschirmaufzeichnungen, bei denen Text und Bilder auf deinem Gerät unkenntlich gemacht werden. Verwendet wird deine Konto-ID, nicht dein Name oder deine E-Mail-Adresse. Du kannst deine Entscheidung jederzeit in Profil ändern.',
-                'We share analytics with our provider PostHog (EU servers), so we can see where learners get stuck. This includes screen recordings, with text and images blacked out on your device. We use your account ID, not your name or email address. You can change this at any time in Profil.',
-              )}
-            </Text>
-            <PillButton label={t('Zustimmen', 'Agree')} onPress={() => { void chooseRecording(true); }} />
-            <PillButton label={t('Nicht jetzt', 'Not now')} variant="ghost" onPress={() => { void chooseRecording(false); }} />
-          </View>
-        </View>
-      </Modal>
+      <SessionTrackingPrompt visible={askRecording} onChoose={(granted) => { void chooseRecording(granted); }} />
       <ScrollView contentContainerStyle={styles.scroll}>
         {alreadyOnboarded ? (
           // Reached from Profil, so this is a change rather than a setup step —
