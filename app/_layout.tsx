@@ -49,11 +49,20 @@ export default function RootLayout() {
   const ready = fontsLoaded || fontError !== null;
 
   // One event at launch, and one each time the app comes back from the background.
+  // session_ended goes out each time the app leaves the foreground, with how long it was open.
   useEffect(() => {
     track('app_opened');
     let last = AppState.currentState;
+    let foregroundAt = last === 'active' ? Date.now() : null;
     const sub = AppState.addEventListener('change', (state) => {
-      if (state === 'active' && last === 'background') track('app_opened');
+      if (state === 'active' && last === 'background') {
+        track('app_opened');
+        foregroundAt = Date.now();
+      }
+      if (state !== 'active' && last === 'active' && foregroundAt !== null) {
+        track('session_ended', { active_s: Math.round((Date.now() - foregroundAt) / 1000) });
+        foregroundAt = null;
+      }
       last = state;
     });
     return () => sub.remove();

@@ -19,7 +19,7 @@ import {
   type ScanOutcome, type Candidate, type CatalogueHit,
 } from '../../lib/ocr';
 import type { CEFRLevel } from '../../types/index';
-import { track, type ErrorCode } from '../../lib/analytics';
+import { track, timer, type ErrorCode } from '../../lib/analytics';
 import { measurePage, getLastMeasureError } from '../../lib/pageMeasure';
 import { fetchScanTotals } from '../../lib/dictionary';
 import { decidePage, GATE_MESSAGES, type BlockReason } from '../../lib/pageGate';
@@ -66,6 +66,7 @@ export default function ScanScreen() {
     if (!cameraRef.current) return;
     setError(null);
     setPhase('busy');
+    const sinceCapture = timer();
     try {
       const photo = await cameraRef.current.takePictureAsync({ quality: 1, skipProcessing: true });
       if (!photo?.uri) {
@@ -73,12 +74,16 @@ export default function ScanScreen() {
         setPhase('idle');
         return;
       }
-      track('scan_photo_taken');
       // The strict gate runs on the phone first. A photo that is not clearly a page of text
       // is never sent. Any failed check blocks the photo (fail closed).
+      const prepElapsed = timer();
       const prepared = await preparePhoto(photo.uri);
+      const prep_ms = prepElapsed();
+      track('scan_photo_taken', { image_kb: Math.round((prepared.base64.length * 3) / 4 / 1024) });
+      const gateElapsed = timer();
       const measured = await measurePage(prepared);
       const gate = decidePage(measured);
+      const gate_ms = gateElapsed();
       if (__DEV__) {
         // Development only: numbers, never the photo or any words, for tuning the gate.
         console.log('page gate', gate.allow ? 'allow' : gate.reason, measured && {
@@ -90,14 +95,15 @@ export default function ScanScreen() {
       }
       if (!gate.allow) {
         track('scan_result', {
-          candidates: 0, catalogue: 0, already_yours: 0, duration_ms: 0, ok: false,
-          error_code: GATE_CODE[gate.reason],
+          candidates: 0, catalogue: 0, already_yours: 0,
+          duration_ms: sinceCapture(), prep_ms, gate_ms, network_ms: 0,
+          ok: false, error_code: GATE_CODE[gate.reason],
         });
         setError(GATE_MESSAGES[gate.reason] + (__DEV__ && getLastMeasureError() ? `\n(dev: ${getLastMeasureError()})` : ''));
         setPhase('idle');
         return;
       }
-      const result = await scanPhoto(prepared.base64, level);
+      const result = await scanPhoto(prepared.base64, level, { prep_ms, gate_ms, sinceCapture });
       if (!result.ok) {
         fail(result.error, result.code);
         setPhase('idle');

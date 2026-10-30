@@ -136,6 +136,8 @@ export function createSessionTimer() {
         });
       }
     },
+    /** Foreground seconds so far in this session. Read-only; sends nothing. */
+    activeSeconds: totalSeconds,
     /** Stops the clock and sends the final total. Extra arguments are ignored:
      *  the server now owns cards and XP, so only time is sent from here. */
     async stop(_extra?: unknown): Promise<void> {

@@ -4,7 +4,7 @@ import { describe, it, expect, vi } from 'vitest';
 // SDK is never constructed; the mock only stops vitest from parsing the RN package.
 vi.mock('posthog-react-native', () => ({ default: class {} }));
 
-import { sanitizeProperties, toErrorCode, track, MAX_STRING_LENGTH } from '../analytics';
+import { sanitizeProperties, toErrorCode, track, timer, MAX_STRING_LENGTH } from '../analytics';
 
 describe('sanitizeProperties', () => {
   it('passes allowed enum values, numbers and booleans', () => {
@@ -77,6 +77,29 @@ describe('sanitizeProperties', () => {
       total: 10,
       perfect: false,
     });
+  });
+});
+
+describe('timing properties', () => {
+  it('keeps every timing key the events carry', () => {
+    const out = sanitizeProperties({
+      load_ms: 412, think_ms: 3050, active_s: 610, duration_ms: 9000,
+      prep_ms: 120, gate_ms: 480, network_ms: 2100, image_kb: 340,
+    });
+    expect(Object.keys(out).sort()).toEqual(
+      ['active_s', 'duration_ms', 'gate_ms', 'image_kb', 'load_ms', 'network_ms', 'prep_ms', 'think_ms'],
+    );
+  });
+
+  it('drops a timing key that is sent as a string', () => {
+    expect(sanitizeProperties({ think_ms: '3050' })).toEqual({});
+  });
+
+  it('timer returns a whole, non-negative number of milliseconds', () => {
+    const elapsed = timer();
+    const ms = elapsed();
+    expect(Number.isInteger(ms)).toBe(true);
+    expect(ms).toBeGreaterThanOrEqual(0);
   });
 });
 

@@ -8,7 +8,7 @@
  * failed send is kept on the device and retried. The result screen shows the traffic lights
  * after the round, so the learner sees what changed.
  */
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Colors, Type, Space, Radius, HIT, ARTICLE_COLOR } from '../../constants/Colors';
@@ -17,7 +17,7 @@ import { useAuth } from '../../context/auth';
 import { levelsOf } from '../../lib/profile';
 import { useI18n } from '../../lib/i18n';
 import { startTest, submitAnswer, finishTest, fetchLights, type TestStart, type LightCounts } from '../../lib/test';
-import { track } from '../../lib/analytics';
+import { track, timer } from '../../lib/analytics';
 
 type Verdict = { chosen: number; correct: boolean; correctIndex: number };
 
@@ -42,6 +42,14 @@ export default function TestScreen() {
   const [xp, setXp] = useState(0);
   const [result, setResult] = useState<{ correct: number; total: number; perfect: boolean } | null>(null);
   const [lights, setLights] = useState<LightCounts | null>(null);
+  // Timing for analytics: round length, and how long each question was on screen.
+  const roundElapsed = useRef<(() => number) | null>(null);
+  const questionElapsed = useRef<(() => number) | null>(null);
+
+  // Starts the think-time clock each time a new question is shown.
+  useEffect(() => {
+    if (test && !result) questionElapsed.current = timer();
+  }, [test, index, result]);
 
   // The error text is shown from state; the event carries only its code.
   useEffect(() => {
@@ -67,11 +75,13 @@ export default function TestScreen() {
     setXp(0);
     setResult(null);
     setLights(null);
+    const loadElapsed = timer();
     const res = await startTest(levels, count);
     if (!res.ok) setError(res.error);
     else {
       setTest(res.data);
-      track('test_started', { size: res.data.questions.length, mode: res.data.mode });
+      roundElapsed.current = timer();
+      track('test_started', { size: res.data.questions.length, mode: res.data.mode, load_ms: loadElapsed() });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [levelKey]);
@@ -92,7 +102,7 @@ export default function TestScreen() {
     const correct = chosen === q.correct_index;
     setVerdict({ chosen, correct, correctIndex: q.correct_index });
     if (correct) setScore((s) => s + 1);
-    track('test_answered', { correct });
+    track('test_answered', { correct, think_ms: questionElapsed.current?.() ?? 0 });
 
     // Send in the background. The server's XP is shown when it arrives.
     void submitAnswer(user.id, q.item_id, chosen)
@@ -112,7 +122,12 @@ export default function TestScreen() {
     const finished = done.ok
       ? { correct: done.data.correct, total: done.data.total, perfect: done.data.perfect_bonus }
       : { correct: score, total: test.questions.length, perfect: false };
-    track('test_finished', { correct: finished.correct, total: finished.total, perfect: finished.perfect });
+    track('test_finished', {
+      correct: finished.correct,
+      total: finished.total,
+      perfect: finished.perfect,
+      duration_ms: roundElapsed.current?.() ?? 0,
+    });
     setResult(finished);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [test, user, index, score, levelKey]);
@@ -273,18 +288,18 @@ const styles = StyleSheet.create({
   counter: { ...Type.meta, color: Colors.textMuted },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: Space.gutter, gap: Space.md },
   content: { padding: Space.gutter, gap: Space.md, paddingBottom: 40 },
-  card: { borderRadius: Radius.card, borderWidth: 1, borderColor: Colors.textMuted, padding: Space.xl, gap: Space.sm },
+  card: { borderRadius: Radius.card, borderWidth: 1, borderColor: Colors.textMuted, padding: Space.xl, gap: Space.sm, minHeight: 120, justifyContent: 'center' },
   prompt: { ...Type.meta, color: Colors.textMuted },
   wordRow: { flexDirection: 'row', alignItems: 'baseline', gap: Space.sm, flexWrap: 'wrap' },
   article: { ...Type.word, fontWeight: '600' },
   german: { ...Type.word, color: Colors.white },
   option: {
     minHeight: HIT + 6, borderRadius: Radius.card, borderWidth: 1, borderColor: Colors.textMuted,
-    paddingHorizontal: Space.lg, justifyContent: 'center',
+    paddingHorizontal: Space.lg, paddingVertical: Space.md, justifyContent: 'center',
   },
   optionCorrect: { borderColor: Colors.green, backgroundColor: Colors.greenBg },
   optionWrong: { borderColor: Colors.red, backgroundColor: Colors.redBg },
-  optionText: { ...Type.body, color: Colors.white },
+  optionText: { ...Type.body, color: Colors.white, flexShrink: 1 },
   feedback: { gap: Space.md, marginTop: Space.sm },
   feedbackText: { ...Type.title },
   body: { ...Type.body, color: Colors.textMuted, textAlign: 'center' },

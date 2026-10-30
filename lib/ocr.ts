@@ -2,7 +2,7 @@ import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 import { supabase } from './supabase';
 import { localISODate } from './localdate';
 import type { CEFRLevel } from '../types/index';
-import { track, toErrorCode, type ErrorCode } from './analytics';
+import { track, timer, toErrorCode, type ErrorCode } from './analytics';
 
 /** The scan boundary. The photo (or one typed word) goes to the server, which asks the model
  *  configured there (scan-words, _shared/vision.ts). No model is named on the device. */
@@ -131,17 +131,33 @@ async function call(body: Record<string, unknown>): Promise<ScanResult> {
   };
 }
 
+/**
+ * Timings the caller measured before the request: how long the phone took to prepare the photo,
+ * how long the page gate took, and a clock started when the photo was taken.
+ */
+export interface ScanStages {
+  prep_ms: number;
+  gate_ms: number;
+  sinceCapture: () => number;
+}
+
 /** Reads a page photo. Words above `level` come back as candidates or catalogue hits. */
-export async function scanPhoto(imageBase64: string, level: CEFRLevel): Promise<ScanResult> {
-  const started = Date.now();
+export async function scanPhoto(imageBase64: string, level: CEFRLevel, stages: ScanStages): Promise<ScanResult> {
+  const elapsed = timer();
   const result = await call({ image_base64: imageBase64, level });
-  const duration_ms = Date.now() - started;
+  const network_ms = elapsed();
+  const timing = {
+    duration_ms: stages.sinceCapture(),
+    prep_ms: stages.prep_ms,
+    gate_ms: stages.gate_ms,
+    network_ms,
+  };
   if (result.ok) {
     track('scan_result', {
       candidates: result.data.candidates.length,
       catalogue: result.data.catalogue.length,
       already_yours: result.data.alreadyYours,
-      duration_ms,
+      ...timing,
       ok: true,
       error_code: 'none',
     });
@@ -150,7 +166,7 @@ export async function scanPhoto(imageBase64: string, level: CEFRLevel): Promise<
       candidates: 0,
       catalogue: 0,
       already_yours: 0,
-      duration_ms,
+      ...timing,
       ok: false,
       error_code: result.code,
     });

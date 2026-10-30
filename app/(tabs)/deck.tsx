@@ -63,8 +63,6 @@ export default function DeckScreen() {
 
   const { grade } = deck;
 
-  useEffect(() => { track('deck_opened'); }, []);
-
   // The error text is shown from deck.error; the event carries only its code.
   useEffect(() => {
     if (deck.status === 'error') track('error_shown', { area: 'deck', error_code: 'load_failed' });

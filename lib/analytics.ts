@@ -68,25 +68,29 @@ export interface AnalyticsEventMap {
   levels_changed: { levels_count: number };
   language_changed: { lang: UiLang };
   daily_goal_changed: { minutes: number };
-  deck_opened: null;
+  deck_opened: { load_ms: number };
   deck_shuffled: null;
-  card_graded: { grade: number; is_new: boolean; origin: WordOriginKind };
-  session_completed: { cards: number; minutes: number };
+  card_graded: { grade: number; is_new: boolean; origin: WordOriginKind; think_ms: number };
+  session_completed: { cards: number; minutes: number; active_s: number };
+  session_ended: { active_s: number };
   theme_opened: { theme_id: ThemeId; band: string };
   progress_opened: null;
   phrases_opened: null;
   leaderboard_opened: null;
-  test_started: { size: number; mode: 'studied' | 'first_look' };
-  test_answered: { correct: boolean };
-  test_finished: { correct: number; total: number; perfect: boolean };
+  test_started: { size: number; mode: 'studied' | 'first_look'; load_ms: number };
+  test_answered: { correct: boolean; think_ms: number };
+  test_finished: { correct: number; total: number; perfect: boolean; duration_ms: number };
   scan_opened: null;
   scan_consent_changed: { granted: boolean };
-  scan_photo_taken: null;
+  scan_photo_taken: { image_kb: number };
   scan_result: {
     candidates: number;
     catalogue: number;
     already_yours: number;
     duration_ms: number;
+    prep_ms: number;
+    gate_ms: number;
+    network_ms: number;
     ok: boolean;
     error_code: ErrorCode | 'none';
   };
@@ -142,7 +146,24 @@ const SCHEMA: Record<string, PropertySpec> = {
   duration_ms: { kind: 'scalar' },
   ok: { kind: 'scalar' },
   count: { kind: 'scalar' },
+  // Timing and reliability. Milliseconds or seconds, never content.
+  active_s: { kind: 'scalar' },
+  load_ms: { kind: 'scalar' },
+  think_ms: { kind: 'scalar' },
+  prep_ms: { kind: 'scalar' },
+  gate_ms: { kind: 'scalar' },
+  network_ms: { kind: 'scalar' },
+  image_kb: { kind: 'scalar' },
 };
+
+/**
+ * Starts a stopwatch and returns a function that gives the elapsed milliseconds.
+ * Use it instead of Date.now() so timings are monotonic and rounded the same way everywhere.
+ */
+export function timer(): () => number {
+  const start = performance.now();
+  return () => Math.round(performance.now() - start);
+}
 
 export type SafeValue = number | boolean | string;
 

@@ -21,7 +21,7 @@ import {
   shuffleRemaining,
 } from '../lib/api';
 import { createSessionTimer } from '../lib/activity';
-import { track } from '../lib/analytics';
+import { track, timer as stopwatch } from '../lib/analytics';
 import { GRADES } from '../constants/Colors';
 import type { CEFRLevel } from '../types';
 import type { DeckCard, DeckSession, Grade, WordEnrichment } from '../types/contracts';
@@ -80,8 +80,12 @@ export function useDeckSession(userId: string | null, levels: CEFRLevel[]) {
   const totals = useRef({ cards: 0, xp: 0 });
   totals.current = { cards: reviewed, xp: sessionXp };
 
+  // Time the card has been on screen, for the card_graded think_ms.
+  const cardElapsed = useRef<(() => number) | null>(null);
+
   const load = useCallback(async (mode: 'resume' | 'rebuild' = 'resume') => {
     const token = ++loadToken.current;
+    const loadElapsed = stopwatch();
     setLoading(true);
     setError(null);
     setNothingDue(null);
@@ -100,6 +104,7 @@ export function useDeckSession(userId: string | null, levels: CEFRLevel[]) {
       if (existing) {
         setSession(existing);
         setLoading(false);
+        track('deck_opened', { load_ms: loadElapsed() });
         return;
       }
     }
@@ -126,7 +131,14 @@ export function useDeckSession(userId: string | null, levels: CEFRLevel[]) {
     setReviewed(0);
     setLoading(false);
     sessionStartedAt.current = Date.now();
+    track('deck_opened', { load_ms: loadElapsed() });
   }, [userId, levelKey]);
+
+  // Restarts the think-time clock whenever a new card comes up.
+  const currentWordId = session?.queue[session.position]?.word.id;
+  useEffect(() => {
+    cardElapsed.current = stopwatch();
+  }, [currentWordId]);
 
   useEffect(() => { void load('resume'); }, [load]);
 
@@ -159,7 +171,7 @@ export function useDeckSession(userId: string | null, levels: CEFRLevel[]) {
     flushedFor.current = session.id;
     const t = timer.current;
     const minutes = Math.round((Date.now() - sessionStartedAt.current) / 60_000);
-    track('session_completed', { cards: totals.current.cards, minutes });
+    track('session_completed', { cards: totals.current.cards, minutes, active_s: t.activeSeconds() });
     void t.stop({ cards: totals.current.cards, xp: totals.current.xp }).then(() => t.start());
   }, [status, session]);
 
@@ -218,7 +230,12 @@ export function useDeckSession(userId: string | null, levels: CEFRLevel[]) {
       setFacingBack(false);
       setReviewed((n) => n + 1);
       setSessionXp((xp) => xp + GRADES[value].xp);
-      track('card_graded', { grade: value, is_new: current.isNew, origin });
+      track('card_graded', {
+        grade: value,
+        is_new: current.isNew,
+        origin,
+        think_ms: cardElapsed.current?.() ?? 0,
+      });
     } finally {
       setGrading(false);
     }
