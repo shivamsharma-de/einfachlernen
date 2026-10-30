@@ -206,7 +206,7 @@ function QuizGame({ words, onExit }: { words: Word[]; onExit: () => void }) {
             </Text>
           </View>
           <View style={styles.xpBadge}>
-            <Text style={styles.xpBadgeText}>+{xp} XP</Text>
+            <Text style={styles.xpBadgeText}>+{xp} Punkte</Text>
           </View>
         </View>
 
@@ -260,7 +260,7 @@ function QuizGame({ words, onExit }: { words: Word[]; onExit: () => void }) {
             >
               <Text style={styles.hintIcon}>{h.icon}</Text>
               <Text style={styles.hintLabel}>{h.label}</Text>
-              <Text style={styles.hintCost}>−{h.cost} XP</Text>
+              <Text style={styles.hintCost}>−{h.cost} Punkte</Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -378,7 +378,7 @@ function ResultScreen({ correct, total, xp, onReplay, onHome }: {
         <View style={styles.resultStats}>
           <StatBox label="Correct" value={`${correct}/${total}`} color={colors.green} />
           <StatBox label="Score"   value={`${pct}%`}            color={colors.gold} />
-          <StatBox label="XP"      value={`+${xp}`}             color={colors.purple} />
+          <StatBox label="Punkte" value={`+${xp}`}             color={colors.purple} />
         </View>
         <TouchableOpacity style={styles.replayBtn} onPress={onReplay}>
           <Text style={styles.replayBtnText}>Play Again ↺</Text>

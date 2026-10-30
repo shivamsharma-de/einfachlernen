@@ -144,3 +144,8 @@ One detail that will bite elsewhere: RN 0.86's types no longer declare
   local advance was reasoned through, the server reconciliation was not exercised.
 - **Android.** iOS only so far. `backfaceVisibility` is unreliable there, so the faces also
   cross-fade on opacity; worth one look on a device.
+
+## FEAT-002 / FEAT-003 (display only)
+
+- **FEAT-002 "XP" → "Punkte".** Display labels only; stored fields (`xp`, `xp_earned`, `xp` in RPC results) unchanged. Explanation text added on Fortschritt.
+- **FEAT-003 home heading.** "Swypo." is the heading; the German greeting sits below it as subtext, English greeting stays as caption.

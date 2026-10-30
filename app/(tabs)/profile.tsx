@@ -271,7 +271,7 @@ export default function ProfileScreen() {
             <View style={styles.statRow}>
               <StatPair
                 value={profile?.xp ?? 0}
-                label={`XP · Stufe ${stufe(profile?.xp ?? 0)}`}
+                label={`Punkte · Stufe ${stufe(profile?.xp ?? 0)}`}
               />
             </View>
           </View>

@@ -97,14 +97,20 @@ export default function ProgressScreen() {
           <View style={styles.row}>
             <Stat value={`${minutes}/${DAILY_MINUTES_GOAL}`} label={t('Minuten', 'minutes')} color={colors.purple} />
             <Stat value={String(today?.cards_reviewed ?? 0)} label={t('Karten', 'cards')} color={colors.text} />
-            <Stat value={String(today?.xp_earned ?? 0)} label="XP" color={colors.gold} />
+            <Stat value={String(today?.xp_earned ?? 0)} label={t('Punkte', 'points')} color={colors.gold} />
           </View>
 
           {/* Account totals */}
           <View style={styles.row}>
             <Stat value={String(streak)} label={t('Tage Serie', 'day streak')} color={colors.gold} />
-            <Stat value={String(profile?.xp ?? 0)} label={t('XP gesamt', 'XP total')} color={colors.gold} />
+            <Stat value={String(profile?.xp ?? 0)} label={t('Punkte gesamt', 'points total')} color={colors.gold} />
           </View>
+          <Text style={styles.muted}>
+            {t(
+              'Punkte gibt es für jede bewertete Karte: 2 bei „Nochmal“, 10 bei Schwer, Gut und Leicht. Alles richtig im Test bringt 10 Bonuspunkte.',
+              'You earn points for each graded card: 2 for “Again”, 10 for Hard, Good and Easy. All correct in a test gives 10 bonus points.',
+            )}
+          </Text>
 
           {/* Last seven days */}
           <Text style={styles.eyebrow}>{t('LETZTE 7 TAGE', 'LAST 7 DAYS')}</Text>
