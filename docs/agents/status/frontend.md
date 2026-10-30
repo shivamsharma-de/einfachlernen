@@ -163,3 +163,12 @@ target at least 44pt. Sign-in completes through the same `onAuthStateChange` pat
 in the milestone report; not made here.
 
 **Verified statically only:** typecheck and vitest pass. Not run against a Supabase instance.
+## FEAT-001 — lens picker · `app/(tabs)/scan.tsx`
+
+Lens list comes from `getAvailableLensesAsync()` on `onCameraReady`, kept current by
+`onAvailableLensesChanged`. Shows the physical back lenses (Ultraweit / Weitwinkel / Tele) as a
+`SegmentedToggle` over the camera, only when the device has more than one, and only while idle.
+Virtual cameras (triple, dual-wide) are left out. The camera now starts on the wide lens explicitly.
+
+Verified statically: typecheck, `npm test`, `npm run bundle`. Not verified on a device: actual
+switching, the default lens, and the Android fallback (control hidden, `selectedLens` ignored).
