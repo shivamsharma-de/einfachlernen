@@ -6,14 +6,15 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View, Text, StyleSheet, SafeAreaView, ScrollView,
-  TouchableOpacity, ActivityIndicator,
+  TouchableOpacity, ActivityIndicator, Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { CameraView, useCameraPermissions } from 'expo-camera';
+import { CameraView, useCameraPermissions, type LensInfo } from 'expo-camera';
 import { Type, Space, Radius, HIT, articleColor } from '../../constants/Colors';
 import type { ColorTokens } from '../../constants/Colors';
 import { useThemedStyles, useTheme } from '../../context/theme';
 import { Eyebrow, LevelBadge, PillButton, ScanProgress } from '../../components';
+import { SegmentedToggle } from '../../components/SegmentedToggle';
 import { useAuth } from '../../context/auth';
 import { levelsOf } from '../../lib/profile';
 import {
@@ -40,6 +41,31 @@ const GATE_CODE: Record<BlockReason, ErrorCode> = {
 const candidateKey = (c: Candidate) => `c:${c.german.toLowerCase()}`;
 const catalogueKey = (w: CatalogueHit) => `m:${w.id}`;
 
+/**
+ * Physical back lenses, shortest focal length first. Virtual cameras (triple, dual-wide) are
+ * left out: they combine these lenses and would hide the real choice. iOS only: expo-camera
+ * ignores `selectedLens` on Android.
+ */
+const LENS_ORDER = [
+  'AVCaptureDeviceTypeBuiltInUltraWideCamera',
+  'AVCaptureDeviceTypeBuiltInWideAngleCamera',
+  'AVCaptureDeviceTypeBuiltInTelephotoCamera',
+] as const;
+const LENS_LABEL: Record<(typeof LENS_ORDER)[number], { label: string; spoken: string }> = {
+  AVCaptureDeviceTypeBuiltInUltraWideCamera: { label: 'Ultraweit', spoken: 'Ultraweitwinkel-Kamera' },
+  AVCaptureDeviceTypeBuiltInWideAngleCamera: { label: 'Weitwinkel', spoken: 'Weitwinkel-Kamera' },
+  AVCaptureDeviceTypeBuiltInTelephotoCamera: { label: 'Tele', spoken: 'Teleobjektiv' },
+};
+/** The camera always starts on the wide lens, not on whichever lens AVFoundation picks. */
+const DEFAULT_LENS = 'AVCaptureDeviceTypeBuiltInWideAngleCamera';
+
+function physicalLenses(lenses: LensInfo[]): LensInfo[] {
+  return LENS_ORDER.flatMap((type) => {
+    const found = lenses.find((l) => l.deviceType === type);
+    return found ? [found] : [];
+  });
+}
+
 export default function ScanScreen() {
   const { colors } = useTheme();
   const styles = useThemedStyles(makeStyles);
@@ -59,6 +85,19 @@ export default function ScanScreen() {
   const [consentBusy, setConsentBusy] = useState(false);
   const [totals, setTotals] = useState<{ saved: number; detected: number } | null>(null);
   const [saving, setSaving] = useState(false);
+  const [lenses, setLenses] = useState<LensInfo[]>([]);
+  const [lens, setLens] = useState<string>(DEFAULT_LENS);
+
+  const readLenses = useCallback((next: LensInfo[]) => setLenses(physicalLenses(next)), []);
+
+  // Lens list is only available once the camera session is running. If it cannot be read, the
+  // lens control stays hidden and the camera uses its default lens.
+  const onCameraReady = useCallback(() => {
+    if (Platform.OS !== 'ios') return;
+    cameraRef.current?.getAvailableLensesAsync()
+      .then(readLenses)
+      .catch(() => setLenses([]));
+  }, [readLenses]);
 
   /** Shows an error and records its code. The text itself is never tracked. */
   const fail = useCallback((text: string, code: ErrorCode) => {
@@ -320,10 +359,30 @@ export default function ScanScreen() {
 
   // ─── Camera ──────────────────────────────────────────────────────────────
 
+  const lensOptions = physicalLenses(lenses).map((l) => ({
+    value: l.deviceType,
+    label: LENS_LABEL[l.deviceType as keyof typeof LENS_LABEL].label,
+    accessibilityLabel: LENS_LABEL[l.deviceType as keyof typeof LENS_LABEL].spoken,
+  }));
+
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.cameraWrap}>
-        <CameraView ref={cameraRef} style={StyleSheet.absoluteFill} facing="back" />
+        <CameraView
+          ref={cameraRef}
+          style={StyleSheet.absoluteFill}
+          facing="back"
+          selectedLens={lens}
+          onCameraReady={onCameraReady}
+          onAvailableLensesChanged={(event) => readLenses(event.lenses)}
+        />
+        {phase === 'idle' && lensOptions.length > 1 && (
+          <View style={styles.lensBar}>
+            <View style={styles.lensPill}>
+              <SegmentedToggle<string> options={lensOptions} value={lens} onChange={setLens} />
+            </View>
+          </View>
+        )}
         {phase === 'busy' && (
           <View style={styles.busy}>
             <ScanProgress />
@@ -394,6 +453,8 @@ const makeStyles = (c: ColorTokens) => StyleSheet.create({
   totals: { ...Type.meta, color: c.text, textAlign: 'center' },
   cameraWrap: { flex: 1, overflow: 'hidden', borderRadius: Radius.card, margin: Space.gutter, backgroundColor: c.surface },
   busy: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center', gap: Space.sm, backgroundColor: c.bg },
+  lensBar: { position: 'absolute', left: 0, right: 0, bottom: Space.md, alignItems: 'center' },
+  lensPill: { backgroundColor: c.bg, borderRadius: Radius.pill, padding: Space.xs },
   controls: { padding: Space.gutter, gap: Space.md },
   review: { padding: Space.gutter, gap: Space.md, paddingBottom: 40 },
   title: { ...Type.title, color: c.text },

@@ -144,3 +144,13 @@ One detail that will bite elsewhere: RN 0.86's types no longer declare
   local advance was reasoned through, the server reconciliation was not exercised.
 - **Android.** iOS only so far. `backfaceVisibility` is unreliable there, so the faces also
   cross-fade on opacity; worth one look on a device.
+
+## FEAT-001 — lens picker · `app/(tabs)/scan.tsx`
+
+Lens list comes from `getAvailableLensesAsync()` on `onCameraReady`, kept current by
+`onAvailableLensesChanged`. Shows the physical back lenses (Ultraweit / Weitwinkel / Tele) as a
+`SegmentedToggle` over the camera, only when the device has more than one, and only while idle.
+Virtual cameras (triple, dual-wide) are left out. The camera now starts on the wide lens explicitly.
+
+Verified statically: typecheck, `npm test`, `npm run bundle`. Not verified on a device: actual
+switching, the default lens, and the Android fallback (control hidden, `selectedLens` ignored).
