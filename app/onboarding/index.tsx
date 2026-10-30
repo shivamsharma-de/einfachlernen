@@ -16,6 +16,7 @@
  */
 import React, { useCallback, useState } from 'react';
 import {
+  Modal,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -30,7 +31,7 @@ import { Eyebrow, LevelBadge, PillButton } from '../../components';
 import { useAuth } from '../../context/auth';
 import { CEFR_LEVELS, isMostlyEstimated, useLevelCounts, type LevelCount } from '../../hooks/useLevelCounts';
 import { formatCountDe } from '../../hooks/grammar';
-import { completeOnboarding, levelsOf, updateLevels } from '../../lib/profile';
+import { completeOnboarding, levelsOf, saveReplayConsent, updateLevels } from '../../lib/profile';
 import { LanguageToggle, useI18n } from '../../lib/i18n';
 import { track } from '../../lib/analytics';
 import type { CEFRLevel } from '../../types';
@@ -63,6 +64,8 @@ export default function LevelSelectionScreen() {
   }, []);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  // First run only: the learner chooses whether screen recording is allowed, before finishing.
+  const [askRecording, setAskRecording] = useState(false);
 
   const save = useCallback(async () => {
     if (!user || selected.length === 0 || saving) return;
@@ -89,8 +92,35 @@ export default function LevelSelectionScreen() {
     router.replace('/(tabs)/deck');
   }, [user, selected, saving, alreadyOnboarded, refreshProfile, router]);
 
+  const chooseRecording = useCallback(async (granted: boolean) => {
+    if (!user) return;
+    setAskRecording(false);
+    await saveReplayConsent(user.id, granted);
+    await save();
+  }, [user, save]);
+
+  const onStart = useCallback(() => {
+    if (alreadyOnboarded) void save();
+    else setAskRecording(true);
+  }, [alreadyOnboarded, save]);
+
   return (
     <SafeAreaView style={styles.safe}>
+      <Modal visible={askRecording} transparent animationType="fade" onRequestClose={() => setAskRecording(false)}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>{t('Bildschirmaufzeichnung', 'Screen recording')}</Text>
+            <Text style={styles.modalBody}>
+              {t(
+                'Wir teilen Analysedaten mit unserem Dienstleister PostHog (Server in der EU), damit wir verstehen, wo Lernende hängen bleiben. Dazu gehören Bildschirmaufzeichnungen, bei denen Text und Bilder auf deinem Gerät unkenntlich gemacht werden. Verwendet wird deine Konto-ID, nicht dein Name oder deine E-Mail-Adresse. Du kannst deine Entscheidung jederzeit in Profil ändern.',
+                'We share analytics with our provider PostHog (EU servers), so we can see where learners get stuck. This includes screen recordings, with text and images blacked out on your device. We use your account ID, not your name or email address. You can change this at any time in Profil.',
+              )}
+            </Text>
+            <PillButton label={t('Zustimmen', 'Agree')} onPress={() => { void chooseRecording(true); }} />
+            <PillButton label={t('Nicht jetzt', 'Not now')} variant="ghost" onPress={() => { void chooseRecording(false); }} />
+          </View>
+        </View>
+      </Modal>
       <ScrollView contentContainerStyle={styles.scroll}>
         {alreadyOnboarded ? (
           // Reached from Profil, so this is a change rather than a setup step —
@@ -156,7 +186,7 @@ export default function LevelSelectionScreen() {
 
         <PillButton
           label={saving ? t('Wird gespeichert…', 'Saving…') : alreadyOnboarded ? t('Niveau speichern', 'Save level') : t('Los geht’s', 'Let’s go')}
-          onPress={() => { void save(); }}
+          onPress={onStart}
           disabled={selected.length === 0 || saving || !user}
           style={styles.cta}
         />
@@ -276,5 +306,12 @@ const styles = StyleSheet.create({
   saveErrorBody: { ...Type.caption, color: Colors.textMuted },
 
   cta: { marginTop: Space.xl },
+  modalBackdrop: { flex: 1, backgroundColor: Colors.black, alignItems: 'center', justifyContent: 'center', padding: Space.gutter },
+  modalCard: {
+    width: '100%', gap: Space.md, padding: Space.xl, borderRadius: Radius.card,
+    borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.surface,
+  },
+  modalTitle: { ...Type.title, color: Colors.white },
+  modalBody: { ...Type.body, color: Colors.textMuted },
   signedOut: { ...Type.caption, color: Colors.textMuted, textAlign: 'center', marginTop: Space.sm },
 });
