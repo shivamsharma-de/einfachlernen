@@ -11,14 +11,15 @@
  */
 import { View } from 'react-native';
 import { Redirect } from 'expo-router';
-import { Colors } from '../constants/Colors';
+import { useTheme } from '../context/theme';
 import { useAuth } from '../context/auth';
 
 export default function Index() {
   const { loading, user, profile } = useAuth();
+  const { colors } = useTheme();
 
   // The splash has only just been dismissed; a spinner here would read as a flash.
-  if (loading) return <View style={{ flex: 1, backgroundColor: Colors.bg }} />;
+  if (loading) return <View style={{ flex: 1, backgroundColor: colors.bg }} />;
 
   if (!user) return <Redirect href="/(auth)/login" />;
 

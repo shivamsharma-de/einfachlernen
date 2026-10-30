@@ -1,6 +1,8 @@
 import React from 'react';
 import { Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
-import { Colors, Type, Radius, Space, HIT } from '../constants/Colors';
+import { Type, Radius, Space, HIT } from '../constants/Colors';
+import type { ColorTokens } from '../constants/Colors';
+import { useThemedStyles } from '../context/theme';
 import { CEFRLevel } from '../types';
 
 /** Horizontal level picker. Selected = `white` fill / `black` text, unselected =
@@ -11,6 +13,7 @@ export function LevelChipRow({ levels, value, onChange }: {
   value: CEFRLevel;
   onChange: (level: CEFRLevel) => void;
 }) {
+  const styles = useThemedStyles(makeStyles);
   return (
     <ScrollView
       horizontal
@@ -37,7 +40,7 @@ export function LevelChipRow({ levels, value, onChange }: {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: ColorTokens) => StyleSheet.create({
   content: { gap: Space.sm, paddingRight: Space.xl },
   chip: {
     minHeight: HIT,
@@ -48,9 +51,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1,
   },
-  chipOn: { backgroundColor: Colors.white, borderColor: Colors.white },
-  chipOff: { backgroundColor: 'transparent', borderColor: Colors.border },
+  chipOn: { backgroundColor: c.inverseFill, borderColor: c.inverseFill },
+  chipOff: { backgroundColor: 'transparent', borderColor: c.border },
   text: { ...Type.meta },
-  textOn: { color: Colors.black },
-  textOff: { color: Colors.textMuted },
+  textOn: { color: c.inverseText },
+  textOff: { color: c.textMuted },
 });

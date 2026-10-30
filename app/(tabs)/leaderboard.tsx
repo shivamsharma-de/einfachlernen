@@ -3,7 +3,9 @@ import {
   View, Text, ScrollView, TouchableOpacity,
   StyleSheet, SafeAreaView,
 } from 'react-native';
-import { Colors } from '../../constants/Colors';
+import { medalColors } from '../../constants/Colors';
+import type { ColorTokens } from '../../constants/Colors';
+import { useThemedStyles } from '../../context/theme';
 import { track } from '../../lib/analytics';
 
 interface Player {
@@ -39,6 +41,7 @@ const MEDAL: Record<number, string> = { 1: '🥇', 2: '🥈', 3: '🥉' };
 type BoardTab = 'global' | 'friends';
 
 export default function LeaderboardScreen() {
+  const styles = useThemedStyles(makeStyles);
   useEffect(() => { track('leaderboard_opened'); }, []);
   const [tab, setTab] = useState<BoardTab>('global');
   const players = tab === 'global' ? GLOBAL_PLAYERS : FRIENDS_PLAYERS;
@@ -61,7 +64,7 @@ export default function LeaderboardScreen() {
               <Text style={styles.podiumMedal}>🥈</Text>
               <Text style={styles.podiumName}>{top3[1].name.split(' ')[0]}</Text>
               <Text style={styles.podiumXp}>{(top3[1].xp / 1000).toFixed(1)}k</Text>
-              <View style={[styles.podiumBar, { height: 60, backgroundColor: Colors.medalSilver }]} />
+              <View style={[styles.podiumBar, { height: 60, backgroundColor: medalColors.medalSilver }]} />
             </View>
             {/* 1st */}
             <View style={styles.podiumPlayer}>
@@ -69,7 +72,7 @@ export default function LeaderboardScreen() {
               <Text style={styles.podiumMedal}>🥇</Text>
               <Text style={styles.podiumName}>{top3[0].name.split(' ')[0]}</Text>
               <Text style={styles.podiumXp}>{(top3[0].xp / 1000).toFixed(1)}k</Text>
-              <View style={[styles.podiumBar, { height: 80, backgroundColor: Colors.medalGold }]} />
+              <View style={[styles.podiumBar, { height: 80, backgroundColor: medalColors.medalGold }]} />
             </View>
             {/* 3rd */}
             <View style={[styles.podiumPlayer, { marginTop: 40 }]}>
@@ -77,7 +80,7 @@ export default function LeaderboardScreen() {
               <Text style={styles.podiumMedal}>🥉</Text>
               <Text style={styles.podiumName}>{top3[2].name.split(' ')[0]}</Text>
               <Text style={styles.podiumXp}>{(top3[2].xp / 1000).toFixed(1)}k</Text>
-              <View style={[styles.podiumBar, { height: 44, backgroundColor: Colors.medalBronze }]} />
+              <View style={[styles.podiumBar, { height: 44, backgroundColor: medalColors.medalBronze }]} />
             </View>
           </View>
         )}
@@ -123,13 +126,14 @@ export default function LeaderboardScreen() {
 }
 
 function PlayerRow({ player }: { player: Player }) {
+  const styles = useThemedStyles(makeStyles);
   return (
     <View style={[styles.row, player.isMe && styles.rowMe]}>
       <Text style={[
         styles.rank,
-        player.rank === 1 && { color: Colors.medalGold },
-        player.rank === 2 && { color: Colors.medalSilver },
-        player.rank === 3 && { color: Colors.medalBronze },
+        player.rank === 1 && { color: medalColors.medalGold },
+        player.rank === 2 && { color: medalColors.medalSilver },
+        player.rank === 3 && { color: medalColors.medalBronze },
       ]}>
         {MEDAL[player.rank] ?? player.rank}
       </Text>
@@ -151,12 +155,12 @@ function PlayerRow({ player }: { player: Player }) {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: Colors.bg },
+const makeStyles = (c: ColorTokens) => StyleSheet.create({
+  safe: { flex: 1, backgroundColor: c.bg },
   content: { paddingHorizontal: 20, paddingTop: 16 },
 
-  title: { color: Colors.white, fontSize: 24, fontWeight: '900' },
-  sub: { color: Colors.textMuted, fontSize: 13, marginTop: 2, marginBottom: 20 },
+  title: { color: c.text, fontSize: 24, fontWeight: '900' },
+  sub: { color: c.textMuted, fontSize: 13, marginTop: 2, marginBottom: 20 },
 
   podium: {
     flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'center',
@@ -165,51 +169,51 @@ const styles = StyleSheet.create({
   podiumPlayer: { alignItems: 'center', width: 90 },
   podiumAvatar: { fontSize: 32, marginBottom: 4 },
   podiumMedal: { fontSize: 20, marginBottom: 4 },
-  podiumName: { color: Colors.white, fontSize: 12, fontWeight: '700', marginBottom: 4 },
-  podiumXp: { color: Colors.gold, fontSize: 11, fontWeight: '700', marginBottom: 6 },
+  podiumName: { color: c.text, fontSize: 12, fontWeight: '700', marginBottom: 4 },
+  podiumXp: { color: c.goldText, fontSize: 11, fontWeight: '700', marginBottom: 6 },
   podiumBar: { width: 60, borderRadius: 6 },
 
   tabs: { flexDirection: 'row', gap: 10, marginBottom: 16 },
   tabBtn: {
     flex: 1, paddingVertical: 10, borderRadius: 12, borderWidth: 1,
-    borderColor: Colors.border, backgroundColor: Colors.surface,
+    borderColor: c.border, backgroundColor: c.surface,
     alignItems: 'center',
   },
-  tabBtnActive: { backgroundColor: Colors.gold, borderColor: Colors.gold },
-  tabBtnText: { color: Colors.textMuted, fontWeight: '700', fontSize: 14 },
-  tabBtnTextActive: { color: Colors.black },
+  tabBtnActive: { backgroundColor: c.gold, borderColor: c.gold },
+  tabBtnText: { color: c.textMuted, fontWeight: '700', fontSize: 14 },
+  tabBtnTextActive: { color: c.onGold },
 
   myRankCard: {
-    backgroundColor: Colors.goldBg, borderRadius: 14, padding: 14,
-    borderWidth: 1, borderColor: Colors.gold + '44', marginBottom: 16,
+    backgroundColor: c.goldBg, borderRadius: 14, padding: 14,
+    borderWidth: 1, borderColor: c.gold + '44', marginBottom: 16,
   },
-  myRankLabel: { color: Colors.gold, fontSize: 11, fontWeight: '700', marginBottom: 8 },
+  myRankLabel: { color: c.goldText, fontSize: 11, fontWeight: '700', marginBottom: 8 },
   myRankRow: { flexDirection: 'row', alignItems: 'center', gap: 16 },
-  myRankNum: { color: Colors.gold, fontSize: 36, fontWeight: '900' },
-  myRankXp: { color: Colors.white, fontSize: 16, fontWeight: '800' },
-  myRankGap: { color: Colors.textMuted, fontSize: 12, marginTop: 2 },
+  myRankNum: { color: c.goldText, fontSize: 36, fontWeight: '900' },
+  myRankXp: { color: c.text, fontSize: 16, fontWeight: '800' },
+  myRankGap: { color: c.textMuted, fontSize: 12, marginTop: 2 },
 
   board: {
-    backgroundColor: Colors.surface, borderRadius: 16, overflow: 'hidden',
-    borderWidth: 1, borderColor: Colors.border,
+    backgroundColor: c.surface, borderRadius: 16, overflow: 'hidden',
+    borderWidth: 1, borderColor: c.border,
   },
   row: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    padding: 14, borderBottomWidth: 1, borderBottomColor: Colors.surface3,
+    padding: 14, borderBottomWidth: 1, borderBottomColor: c.surface3,
   },
-  rowMe: { backgroundColor: Colors.goldBg },
-  rank: { width: 28, textAlign: 'center', color: Colors.textMuted, fontSize: 16, fontWeight: '800' },
+  rowMe: { backgroundColor: c.goldBg },
+  rank: { width: 28, textAlign: 'center', color: c.textMuted, fontSize: 16, fontWeight: '800' },
   avatarCircle: {
     width: 40, height: 40, borderRadius: 20,
-    backgroundColor: Colors.surface2, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: c.surface2, alignItems: 'center', justifyContent: 'center',
   },
-  avatarCircleMe: { backgroundColor: Colors.goldBg, borderWidth: 1, borderColor: Colors.gold + '55' },
+  avatarCircleMe: { backgroundColor: c.goldBg, borderWidth: 1, borderColor: c.gold + '55' },
   avatarEmoji: { fontSize: 20 },
   rowInfo: { flex: 1 },
   rowNameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  rowName: { color: Colors.white, fontSize: 14, fontWeight: '600' },
-  youBadge: { backgroundColor: Colors.gold, paddingHorizontal: 6, paddingVertical: 1, borderRadius: 6 },
-  youBadgeText: { color: Colors.black, fontSize: 10, fontWeight: '800' },
-  rowMeta: { color: Colors.textMuted, fontSize: 12, marginTop: 2 },
-  rowXp: { color: Colors.gold, fontSize: 13, fontWeight: '700' },
+  rowName: { color: c.text, fontSize: 14, fontWeight: '600' },
+  youBadge: { backgroundColor: c.gold, paddingHorizontal: 6, paddingVertical: 1, borderRadius: 6 },
+  youBadgeText: { color: c.onGold, fontSize: 10, fontWeight: '800' },
+  rowMeta: { color: c.textMuted, fontSize: 12, marginTop: 2 },
+  rowXp: { color: c.goldText, fontSize: 13, fontWeight: '700' },
 });

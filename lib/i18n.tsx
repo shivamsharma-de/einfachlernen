@@ -12,9 +12,8 @@
  * German phone opens in German and anything else opens in English.
  */
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { Text, TouchableOpacity, StyleSheet, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Colors, Type, Space, Radius, HIT } from '../constants/Colors';
+import { SegmentedToggle } from '../components/SegmentedToggle';
 import { useAuth } from '../context/auth';
 import { supabase } from './supabase';
 import { track } from './analytics';
@@ -88,33 +87,14 @@ export function useI18n(): I18nValue {
 /** Two-way DE / EN switch. Shown on the login, level and settings screens. */
 export function LanguageToggle() {
   const { lang, setLang } = useI18n();
-  const option = (value: Lang, label: string) => {
-    const on = lang === value;
-    return (
-      <TouchableOpacity
-        key={value}
-        onPress={() => setLang(value)}
-        accessibilityRole="button"
-        accessibilityState={{ selected: on }}
-        accessibilityLabel={value === 'de' ? 'Deutsch' : 'English'}
-        style={[styles.option, on && styles.optionOn]}
-        activeOpacity={0.85}
-      >
-        <Text style={[styles.label, on && styles.labelOn]}>{label}</Text>
-      </TouchableOpacity>
-    );
-  };
-  return <View style={styles.row}>{option('de', 'DE')}{option('en', 'EN')}</View>;
+  return (
+    <SegmentedToggle<Lang>
+      value={lang}
+      onChange={setLang}
+      options={[
+        { value: 'de', label: 'DE', accessibilityLabel: 'Deutsch' },
+        { value: 'en', label: 'EN', accessibilityLabel: 'English' },
+      ]}
+    />
+  );
 }
-
-const styles = StyleSheet.create({
-  row: { flexDirection: 'row', alignSelf: 'center', gap: Space.xs },
-  option: {
-    minWidth: HIT, minHeight: HIT, paddingHorizontal: Space.md,
-    alignItems: 'center', justifyContent: 'center',
-    borderRadius: Radius.pill, borderWidth: 1, borderColor: Colors.textMuted,
-  },
-  optionOn: { borderColor: Colors.purple, backgroundColor: Colors.purpleBg },
-  label: { ...Type.meta, color: Colors.textMuted },
-  labelOn: { color: Colors.white },
-});

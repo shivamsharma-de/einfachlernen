@@ -6,7 +6,7 @@
     "scheme": "swapo",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "dark",
+    "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "app.swapo.ios",
@@ -46,7 +46,10 @@
         {
           "image": "./assets/splash-icon.png",
           "resizeMode": "contain",
-          "backgroundColor": "#ffffff"
+          "backgroundColor": "#F6F1E7",
+          "dark": {
+            "backgroundColor": "#14120F"
+          }
         }
       ],
       "expo-apple-authentication"

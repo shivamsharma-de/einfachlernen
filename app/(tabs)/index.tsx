@@ -3,7 +3,9 @@ import {
   View, Text, ScrollView, StyleSheet, SafeAreaView, TouchableOpacity, ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Colors, Type, Space, Radius, THEMEN } from '../../constants/Colors';
+import { Type, Space, Radius, THEMEN } from '../../constants/Colors';
+import type { ColorTokens } from '../../constants/Colors';
+import { useThemedStyles, useTheme } from '../../context/theme';
 import { themeForCategory } from '../../constants/Themes';
 import { SvgXml } from 'react-native-svg';
 import { Eyebrow, ProgressRing, StatPair, SectionShelf, WordRow, PillButton } from '../../components';
@@ -60,6 +62,8 @@ function toWordRow(w: DeckWord): Word {
 }
 
 export default function HomeScreen() {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const router = useRouter();
   const { user, profile } = useAuth();
   useEffect(() => { track('home_opened'); }, []);
@@ -163,7 +167,7 @@ export default function HomeScreen() {
               <ProgressRing
                 pct={minutes / DAILY_MINUTES_GOAL}
                 size={64}
-                color={Colors.gold}
+                color={colors.gold}
                 label={`${minutes}/${DAILY_MINUTES_GOAL}`}
               />
               <View style={styles.goalCopy}>
@@ -177,7 +181,7 @@ export default function HomeScreen() {
               </View>
             </View>
             <View style={styles.statRow}>
-              <StatPair value={streak} label="Tage Serie" color={Colors.gold} />
+              <StatPair value={streak} label="Tage Serie" color={colors.gold} />
               <StatPair value={profile?.xp ?? 0} label={`XP · Stufe ${stufe(profile?.xp ?? 0)}`} />
             </View>
           </View>
@@ -222,10 +226,10 @@ export default function HomeScreen() {
                 <>
                   <View style={styles.testBar}>
                     {[
-                      { n: lights.green, c: Colors.green },
-                      { n: lights.yellow, c: Colors.gold },
-                      { n: lights.red, c: Colors.red },
-                      { n: lights.grey, c: Colors.textMuted },
+                      { n: lights.green, c: colors.green },
+                      { n: lights.yellow, c: colors.gold },
+                      { n: lights.red, c: colors.red },
+                      { n: lights.grey, c: colors.textMuted },
                     ].map((seg, i) => (
                       <View key={i} style={{ flex: Math.max(seg.n, 0) / lights.studied, backgroundColor: seg.c, height: 8 }} />
                     ))}
@@ -248,7 +252,7 @@ export default function HomeScreen() {
 
         {/* 5 — Themen shelf */}
         {loading ? (
-          <ActivityIndicator color={Colors.textMuted} style={styles.loader} />
+          <ActivityIndicator color={colors.textMuted} style={styles.loader} />
         ) : themen.length > 0 && (
           <SectionShelf title={`Themen · ${levelLabel}`}>
             {themen.map(t => (
@@ -267,7 +271,7 @@ export default function HomeScreen() {
                 {(() => {
                   const theme = themeForCategory(t.category);
                   return (
-                    <View style={[styles.tileArt, { backgroundColor: theme?.bg ?? Colors.surface2 }]}>
+                    <View style={[styles.tileArt, { backgroundColor: theme?.bg ?? colors.surface2 }]}>
                       {theme && <Text style={[styles.tileBand, { color: theme.fg }]}>{theme.band}</Text>}
                       {theme && (
                         <View style={styles.tileIcon}>
@@ -303,11 +307,11 @@ export default function HomeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  testCard: { gap: Space.md, padding: Space.lg, borderRadius: Radius.card, borderWidth: 1, borderColor: Colors.textMuted },
-  testBar: { flexDirection: 'row', borderRadius: Radius.pill, overflow: 'hidden', backgroundColor: Colors.textMuted },
-  testLegend: { ...Type.caption, color: Colors.textMuted },
-  safe: { flex: 1, backgroundColor: Colors.bg },
+const makeStyles = (c: ColorTokens) => StyleSheet.create({
+  testCard: { gap: Space.md, padding: Space.lg, borderRadius: Radius.card, borderWidth: 1, borderColor: c.textMuted },
+  testBar: { flexDirection: 'row', borderRadius: Radius.pill, overflow: 'hidden', backgroundColor: c.textMuted },
+  testLegend: { ...Type.caption, color: c.textMuted },
+  safe: { flex: 1, backgroundColor: c.bg },
   scroll: { flex: 1 },
   content: { paddingTop: Space.sm, paddingBottom: 40, gap: Space.xxl },
   gutter: { paddingHorizontal: Space.gutter },
@@ -316,50 +320,50 @@ const styles = StyleSheet.create({
 
   greetingRow: { flexDirection: 'row', alignItems: 'center', gap: Space.lg },
   greetingText: { flex: 1, gap: 2 },
-  date: { ...Type.eyebrow, color: Colors.textMuted },
-  hello: { ...Type.title, color: Colors.white },
-  period: { color: Colors.purple },
-  helloEn: { ...Type.caption, color: Colors.textMuted },
+  date: { ...Type.eyebrow, color: c.textMuted },
+  hello: { ...Type.title, color: c.text },
+  period: { color: c.purple },
+  helloEn: { ...Type.caption, color: c.textMuted },
   levelCircle: {
     width: 50, height: 50, borderRadius: 25,
-    borderWidth: 1, borderColor: Colors.border,
+    borderWidth: 1, borderColor: c.border,
     alignItems: 'center', justifyContent: 'center',
   },
-  levelCircleText: { ...Type.meta, color: Colors.white },
+  levelCircleText: { ...Type.meta, color: c.text },
 
   card: {
-    backgroundColor: Colors.surface,
+    backgroundColor: c.surface,
     borderRadius: Radius.card,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Colors.border,
+    borderColor: c.border,
     padding: 18,
     gap: Space.lg,
   },
   goalTop: { flexDirection: 'row', alignItems: 'center', gap: Space.lg },
   goalCopy: { flex: 1 },
-  goalMinutes: { ...Type.bodyL, color: Colors.white },
-  goalDue: { ...Type.caption, color: Colors.textMuted, marginTop: 2 },
+  goalMinutes: { ...Type.bodyL, color: c.text },
+  goalDue: { ...Type.caption, color: c.textMuted, marginTop: 2 },
   statRow: {
     flexDirection: 'row', gap: Space.xxl,
-    borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: Colors.border,
+    borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.border,
     paddingTop: Space.lg,
   },
 
   continueCard: {
-    backgroundColor: Colors.purple,
+    backgroundColor: c.purple,
     borderRadius: Radius.card,
     padding: 18,
     gap: Space.xs,
   },
-  continueEyebrow: { ...Type.eyebrow, color: Colors.black },
-  continueTitle: { ...Type.title, fontSize: 24, lineHeight: 28, color: Colors.black },
-  continueSub: { ...Type.caption, color: Colors.black },
-  continueCount: { ...Type.meta, color: Colors.black, marginTop: Space.sm },
+  continueEyebrow: { ...Type.eyebrow, color: c.onAccent },
+  continueTitle: { ...Type.title, fontSize: 24, lineHeight: 28, color: c.onAccent },
+  continueSub: { ...Type.caption, color: c.onAccent },
+  continueCount: { ...Type.meta, color: c.onAccent, marginTop: Space.sm },
   continueBarBg: {
     height: 4, borderRadius: 2, marginTop: Space.xs,
-    backgroundColor: Colors.onPurpleTrack, overflow: 'hidden',
+    backgroundColor: c.onPurpleTrack, overflow: 'hidden',
   },
-  continueBarFill: { height: '100%', borderRadius: 2, backgroundColor: Colors.black },
+  continueBarFill: { height: '100%', borderRadius: 2, backgroundColor: c.onAccent },
 
   tile: {
     width: 150,
@@ -372,9 +376,9 @@ const styles = StyleSheet.create({
   },
   tileBand: { ...Type.meta, position: 'absolute', top: Space.sm, left: Space.md },
   tileIcon: { position: 'absolute', right: Space.sm, bottom: Space.sm },
-  tileTitle: { ...Type.bodyL, color: Colors.white },
-  tileCount: { ...Type.meta, color: Colors.textMuted },
+  tileTitle: { ...Type.bodyL, color: c.text },
+  tileCount: { ...Type.meta, color: c.textMuted },
 
-  dueTotal: { ...Type.eyebrow, color: Colors.textMuted },
-  empty: { ...Type.body, color: Colors.textMuted, paddingVertical: Space.sm },
+  dueTotal: { ...Type.eyebrow, color: c.textMuted },
+  empty: { ...Type.body, color: c.textMuted, paddingVertical: Space.sm },
 });

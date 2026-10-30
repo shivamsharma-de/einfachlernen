@@ -11,7 +11,9 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Colors, Type, Space, Radius, HIT, ARTICLE_COLOR } from '../../constants/Colors';
+import { Type, Space, Radius, HIT, articleColor } from '../../constants/Colors';
+import type { ColorTokens } from '../../constants/Colors';
+import { useThemedStyles, useTheme } from '../../context/theme';
 import { PillButton } from '../../components';
 import { useAuth } from '../../context/auth';
 import { levelsOf } from '../../lib/profile';
@@ -26,6 +28,8 @@ const SIZES = [10, 20, 50] as const;
 const ALL = 1000;
 
 export default function TestScreen() {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const { user, profile } = useAuth();
   const { t } = useI18n();
   const router = useRouter();
@@ -167,7 +171,7 @@ export default function TestScreen() {
       )}
 
       {size !== null && !test && !error && (
-        <View style={styles.center}><ActivityIndicator color={Colors.textMuted} /></View>
+        <View style={styles.center}><ActivityIndicator color={colors.textMuted} /></View>
       )}
 
       {size !== null && error && (
@@ -208,7 +212,7 @@ export default function TestScreen() {
             <Text style={styles.prompt}>{t('Was bedeutet das?', 'What does this mean?')}</Text>
             <View style={styles.wordRow}>
               {test.questions[index].article && (
-                <Text style={[styles.article, { color: ARTICLE_COLOR[test.questions[index].article!] }]}>
+                <Text style={[styles.article, { color: articleColor(colors)[test.questions[index].article!] }]}>
                   {test.questions[index].article}
                 </Text>
               )}
@@ -249,7 +253,7 @@ export default function TestScreen() {
 
           {verdict && (
             <View style={styles.feedback}>
-              <Text style={[styles.feedbackText, { color: verdict.correct ? Colors.green : Colors.red }]}>
+              <Text style={[styles.feedbackText, { color: verdict.correct ? colors.green : colors.red }]}>
                 {verdict.correct ? t('Richtig!', 'Correct!') : t('Leider nicht.', 'Not quite.')}
               </Text>
               <PillButton
@@ -265,47 +269,49 @@ export default function TestScreen() {
 }
 
 function LightBar({ counts }: { counts: LightCounts }) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const total = Math.max(counts.studied, 1);
   const seg = (n: number, color: string) => (
     <View key={color} style={{ flex: n / total, backgroundColor: color, height: 10 }} />
   );
   return (
     <View style={styles.bar}>
-      {seg(counts.green, Colors.green)}
-      {seg(counts.yellow, Colors.gold)}
-      {seg(counts.red, Colors.red)}
-      {seg(counts.grey, Colors.textMuted)}
+      {seg(counts.green, colors.green)}
+      {seg(counts.yellow, colors.gold)}
+      {seg(counts.red, colors.red)}
+      {seg(counts.grey, colors.textMuted)}
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: Colors.bg },
+const makeStyles = (c: ColorTokens) => StyleSheet.create({
+  safe: { flex: 1, backgroundColor: c.bg },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: Space.gutter, paddingVertical: Space.md, gap: Space.md },
   back: { minHeight: HIT, justifyContent: 'center' },
-  backText: { ...Type.body, color: Colors.purple },
-  title: { ...Type.title, color: Colors.white, flex: 1 },
-  counter: { ...Type.meta, color: Colors.textMuted },
+  backText: { ...Type.body, color: c.purple },
+  title: { ...Type.title, color: c.text, flex: 1 },
+  counter: { ...Type.meta, color: c.textMuted },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: Space.gutter, gap: Space.md },
   content: { padding: Space.gutter, gap: Space.md, paddingBottom: 40 },
-  card: { borderRadius: Radius.card, borderWidth: 1, borderColor: Colors.textMuted, padding: Space.xl, gap: Space.sm, minHeight: 120, justifyContent: 'center' },
-  prompt: { ...Type.meta, color: Colors.textMuted },
+  card: { borderRadius: Radius.card, borderWidth: 1, borderColor: c.textMuted, padding: Space.xl, gap: Space.sm, minHeight: 120, justifyContent: 'center' },
+  prompt: { ...Type.meta, color: c.textMuted },
   wordRow: { flexDirection: 'row', alignItems: 'baseline', gap: Space.sm, flexWrap: 'wrap' },
   article: { ...Type.word, fontWeight: '600' },
-  german: { ...Type.word, color: Colors.white },
+  german: { ...Type.word, color: c.text },
   option: {
-    minHeight: HIT + 6, borderRadius: Radius.card, borderWidth: 1, borderColor: Colors.textMuted,
+    minHeight: HIT + 6, borderRadius: Radius.card, borderWidth: 1, borderColor: c.textMuted,
     paddingHorizontal: Space.lg, paddingVertical: Space.md, justifyContent: 'center',
   },
-  optionCorrect: { borderColor: Colors.green, backgroundColor: Colors.greenBg },
-  optionWrong: { borderColor: Colors.red, backgroundColor: Colors.redBg },
-  optionText: { ...Type.body, color: Colors.white, flexShrink: 1 },
+  optionCorrect: { borderColor: c.green, backgroundColor: c.greenBg },
+  optionWrong: { borderColor: c.red, backgroundColor: c.redBg },
+  optionText: { ...Type.body, color: c.text, flexShrink: 1 },
   feedback: { gap: Space.md, marginTop: Space.sm },
   feedbackText: { ...Type.title },
-  body: { ...Type.body, color: Colors.textMuted, textAlign: 'center' },
-  resultScore: { ...Type.display, color: Colors.white, textAlign: 'center' },
-  lightsBox: { gap: Space.sm, padding: Space.lg, borderRadius: Radius.card, borderWidth: 1, borderColor: Colors.textMuted },
-  eyebrow: { ...Type.meta, color: Colors.textMuted },
-  bar: { flexDirection: 'row', borderRadius: Radius.pill, overflow: 'hidden', backgroundColor: Colors.textMuted },
-  legend: { ...Type.caption, color: Colors.textMuted },
+  body: { ...Type.body, color: c.textMuted, textAlign: 'center' },
+  resultScore: { ...Type.display, color: c.text, textAlign: 'center' },
+  lightsBox: { gap: Space.sm, padding: Space.lg, borderRadius: Radius.card, borderWidth: 1, borderColor: c.textMuted },
+  eyebrow: { ...Type.meta, color: c.textMuted },
+  bar: { flexDirection: 'row', borderRadius: Radius.pill, overflow: 'hidden', backgroundColor: c.textMuted },
+  legend: { ...Type.caption, color: c.textMuted },
 });

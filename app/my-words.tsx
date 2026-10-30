@@ -9,7 +9,9 @@ import {
   TextInput, ActivityIndicator, Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Colors, Type, Space, Radius, HIT, ARTICLE_COLOR } from '../constants/Colors';
+import { Type, Space, Radius, HIT, articleColor } from '../constants/Colors';
+import type { ColorTokens } from '../constants/Colors';
+import { useThemedStyles, useTheme } from '../context/theme';
 import { Eyebrow, LevelBadge, PillButton } from '../components';
 import { useAuth } from '../context/auth';
 import { levelsOf } from '../lib/profile';
@@ -19,6 +21,8 @@ import type { CEFRLevel } from '../types/index';
 import { track, type ErrorCode } from '../lib/analytics';
 
 export default function MyWordsScreen() {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const { user, profile } = useAuth();
   const router = useRouter();
   const level = levelsOf(profile)[0];
@@ -139,7 +143,7 @@ export default function MyWordsScreen() {
             value={query}
             onChangeText={setQuery}
             placeholder="z. B. Zauberstab"
-            placeholderTextColor={Colors.textMuted}
+            placeholderTextColor={colors.textMuted}
             autoCapitalize="none"
             autoCorrect={false}
             returnKeyType="search"
@@ -149,7 +153,7 @@ export default function MyWordsScreen() {
           />
           <PillButton label="Nachschlagen" variant="ghost" onPress={() => { void lookup(); }} />
         </View>
-        {looking && <ActivityIndicator color={Colors.textMuted} />}
+        {looking && <ActivityIndicator color={colors.textMuted} />}
         {lookupNote && <Text style={styles.note}>{lookupNote}</Text>}
         {preview && (
           <View style={styles.card}>
@@ -168,7 +172,7 @@ export default function MyWordsScreen() {
         )}
 
         <Eyebrow>{words ? `Meine Wörter · ${words.length}` : 'Meine Wörter'}</Eyebrow>
-        {words === null && !error && <ActivityIndicator color={Colors.textMuted} />}
+        {words === null && !error && <ActivityIndicator color={colors.textMuted} />}
         {words !== null && words.length === 0 && (
           <Text style={styles.empty}>Noch keine eigenen Wörter. Scanne eine Seite oder schlage oben ein Wort nach.</Text>
         )}
@@ -198,10 +202,12 @@ function WordFields(props: {
   article: string | null; german: string; level: CEFRLevel; english: string;
   example: string; exampleEn: string; synonyms: string[]; badge?: string;
 }) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   return (
     <View style={styles.fields}>
       <View style={styles.rowTop}>
-        {props.article ? <Text style={[styles.article, { color: ARTICLE_COLOR[props.article as keyof typeof ARTICLE_COLOR] }]}>{props.article}</Text> : null}
+        {props.article ? <Text style={[styles.article, { color: articleColor(colors)[props.article as keyof typeof articleColor] }]}>{props.article}</Text> : null}
         <Text style={styles.german}>{props.german}</Text>
         <LevelBadge level={props.level} />
         {props.badge ? <Text style={styles.badge}>{props.badge}</Text> : null}
@@ -218,38 +224,38 @@ function WordFields(props: {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: Colors.bg },
+const makeStyles = (c: ColorTokens) => StyleSheet.create({
+  safe: { flex: 1, backgroundColor: c.bg },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: Space.gutter, paddingVertical: Space.md, gap: Space.md },
   back: { minHeight: HIT, justifyContent: 'center' },
-  backText: { ...Type.body, color: Colors.purple },
-  title: { ...Type.title, color: Colors.white, flex: 1 },
+  backText: { ...Type.body, color: c.purple },
+  title: { ...Type.title, color: c.text, flex: 1 },
   content: { padding: Space.gutter, gap: Space.md, paddingBottom: 40 },
-  error: { ...Type.caption, color: Colors.red },
-  note: { ...Type.body, color: Colors.textMuted },
-  empty: { ...Type.body, color: Colors.textMuted },
+  error: { ...Type.caption, color: c.red },
+  note: { ...Type.body, color: c.textMuted },
+  empty: { ...Type.body, color: c.textMuted },
   addRow: { flexDirection: 'row', alignItems: 'center', gap: Space.sm },
   input: {
-    flex: 1, minHeight: HIT, borderRadius: Radius.card, borderWidth: 1, borderColor: Colors.border,
-    backgroundColor: Colors.surface, paddingHorizontal: Space.lg, color: Colors.white, ...Type.body,
+    flex: 1, minHeight: HIT, borderRadius: Radius.card, borderWidth: 1, borderColor: c.border,
+    backgroundColor: c.surface, paddingHorizontal: Space.lg, color: c.text, ...Type.body,
   },
   card: {
     padding: Space.lg, gap: Space.md, borderRadius: Radius.card, borderWidth: 1,
-    borderColor: Colors.border, backgroundColor: Colors.surface,
+    borderColor: c.border, backgroundColor: c.surface,
   },
   fields: { gap: Space.xs },
   rowTop: { flexDirection: 'row', alignItems: 'baseline', flexWrap: 'wrap', gap: Space.sm },
   article: { ...Type.word, fontWeight: '600' },
-  german: { ...Type.word, color: Colors.white },
-  badge: { ...Type.meta, color: Colors.purple },
-  english: { ...Type.bodyL, color: Colors.white },
-  example: { ...Type.body, color: Colors.white },
-  exampleEn: { ...Type.caption, color: Colors.textMuted },
+  german: { ...Type.word, color: c.text },
+  badge: { ...Type.meta, color: c.purple },
+  english: { ...Type.bodyL, color: c.text },
+  example: { ...Type.body, color: c.text },
+  exampleEn: { ...Type.caption, color: c.textMuted },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: Space.xs },
   chip: {
-    ...Type.meta, color: Colors.textMuted, paddingHorizontal: Space.sm, paddingVertical: 2,
-    borderRadius: Radius.pill, borderWidth: 1, borderColor: Colors.border,
+    ...Type.meta, color: c.textMuted, paddingHorizontal: Space.sm, paddingVertical: 2,
+    borderRadius: Radius.pill, borderWidth: 1, borderColor: c.border,
   },
   delete: { alignSelf: 'flex-end', minHeight: HIT, justifyContent: 'center' },
-  deleteText: { ...Type.body, color: Colors.red },
+  deleteText: { ...Type.body, color: c.red },
 });

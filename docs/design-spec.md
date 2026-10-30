@@ -77,6 +77,18 @@ with a 40% alpha border.
 
 ---
 
+### 2b. Light theme
+
+The app has two palettes with identical keys: `darkColors` and `lightColors` in `constants/Colors.ts`.
+The learner picks System, Hell or Dunkel in Profil (default System, stored on the device).
+
+- **Ground:** warm cream `#F6F1E7`, not white. Cards `#FCFAF5`. Violet stays the action colour, darkened to `#6B3FD0` so it reads as text on cream and white reads on it.
+- **Text:** warm near-black `#1F1B16`, muted `#5F584D`. `textDim` is still for dividers only.
+- **Gold is split.** `gold` (`#B07C00`) is for rings, bars and icons (3:1 on cream). `goldText` (`#8A6100`) is for text. The dark gold `#F5C842` fails on cream and must not be used as text in light.
+- **Text on fills** uses `onAccent` (white on violet), `onGold` (near-black on gold) and `inverseText`/`inverseFill` (a light pill in dark, a dark pill in light).
+- **Contrast:** every text pair is at least 4.5:1 in both themes. `constants/Colors` is covered by `lib/__tests__/theme.test.ts`.
+- **Topic tiles** keep their dark colours in light mode, so they read as coloured badges on the cream.
+
 ## 3. Type
 
 The prototype uses three families. React Native has none of them by default — add `expo-font` and load:

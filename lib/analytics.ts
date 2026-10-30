@@ -101,6 +101,7 @@ export interface AnalyticsEventMap {
   word_deleted: null;
   word_spoken: null;
   error_shown: { area: ErrorArea; error_code: ErrorCode };
+  theme_changed: { theme_mode: 'system' | 'light' | 'dark' };
 }
 
 export type AnalyticsEventName = keyof AnalyticsEventMap;
@@ -125,6 +126,7 @@ const SCHEMA: Record<string, PropertySpec> = {
   lang: { kind: 'enum', values: ['de', 'en'] },
   origin: { kind: 'enum', values: ['catalogue', 'scan'] },
   mode: { kind: 'enum', values: ['studied', 'first_look'] },
+  theme_mode: { kind: 'enum', values: ['system', 'light', 'dark'] },
   found: { kind: 'enum', values: ['catalogue', 'candidate', 'none'] },
   theme_id: { kind: 'enum', values: THEMES.map((t) => t.id) },
   band: { kind: 'enum', values: THEME_BANDS },

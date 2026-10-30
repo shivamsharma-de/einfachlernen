@@ -1,6 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Colors, Type, Space, HIT, ARTICLE_COLOR } from '../constants/Colors';
+import { Type, Space, HIT, articleColor } from '../constants/Colors';
+import type { ColorTokens } from '../constants/Colors';
+import { useThemedStyles, useTheme } from '../context/theme';
 import { LevelBadge } from './LevelBadge';
 import { Word } from '../types';
 
@@ -14,6 +16,8 @@ export function WordRow({ word, right, onPress }: {
   right?: React.ReactNode;
   onPress?: (word: Word) => void;
 }) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const article = word.article;
   return (
     <TouchableOpacity
@@ -27,7 +31,7 @@ export function WordRow({ word, right, onPress }: {
       <View style={styles.main}>
         <View style={styles.germanLine}>
           {article && (
-            <Text style={[styles.article, { color: ARTICLE_COLOR[article] }]}>{article}</Text>
+            <Text style={[styles.article, { color: articleColor(colors)[article] }]}>{article}</Text>
           )}
           <Text style={styles.german}>{word.german}</Text>
         </View>
@@ -38,7 +42,7 @@ export function WordRow({ word, right, onPress }: {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: ColorTokens) => StyleSheet.create({
   row: {
     minHeight: HIT,
     flexDirection: 'row',
@@ -47,11 +51,11 @@ const styles = StyleSheet.create({
     paddingVertical: Space.md,
     // Rows are separated by a hairline, not by gaps (§4).
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: Colors.border,
+    borderBottomColor: c.border,
   },
   main: { flex: 1, gap: 2 },
   germanLine: { flexDirection: 'row', alignItems: 'baseline', gap: 6, flexWrap: 'wrap' },
   article: { ...Type.meta },
-  german: { ...Type.word, color: Colors.white, flexShrink: 1 },
-  english: { ...Type.caption, color: Colors.textMuted },
+  german: { ...Type.word, color: c.text, flexShrink: 1 },
+  english: { ...Type.caption, color: c.textMuted },
 });

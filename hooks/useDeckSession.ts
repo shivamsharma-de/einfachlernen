@@ -22,7 +22,7 @@ import {
 } from '../lib/api';
 import { createSessionTimer } from '../lib/activity';
 import { track, timer as stopwatch } from '../lib/analytics';
-import { GRADES } from '../constants/Colors';
+import { GRADE_XP } from '../constants/Colors';
 import type { CEFRLevel } from '../types';
 import type { DeckCard, DeckSession, Grade, WordEnrichment } from '../types/contracts';
 
@@ -229,7 +229,7 @@ export function useDeckSession(userId: string | null, levels: CEFRLevel[]) {
       setRevealed(false);
       setFacingBack(false);
       setReviewed((n) => n + 1);
-      setSessionXp((xp) => xp + GRADES[value].xp);
+      setSessionXp((xp) => xp + GRADE_XP[value]);
       track('card_graded', {
         grade: value,
         is_new: current.isNew,

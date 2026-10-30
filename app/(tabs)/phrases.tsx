@@ -10,7 +10,9 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   View, Text, TextInput, ScrollView, TouchableOpacity, StyleSheet, SafeAreaView, ActivityIndicator,
 } from 'react-native';
-import { Colors, Type, Space, Radius, HIT } from '../../constants/Colors';
+import { Type, Space, Radius, HIT } from '../../constants/Colors';
+import type { ColorTokens } from '../../constants/Colors';
+import { useThemedStyles, useTheme } from '../../context/theme';
 import { PillButton, Eyebrow } from '../../components';
 import { EntryCard } from '../../components/DictionaryEntryCard';
 import { PhrasesList } from '../../components/PhrasesList';
@@ -23,6 +25,8 @@ import { track } from '../../lib/analytics';
 type Segment = 'dictionary' | 'phrases';
 
 export default function WoerterScreen() {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const { profile } = useAuth();
   const level = levelsOf(profile)[0];
 
@@ -124,7 +128,7 @@ export default function WoerterScreen() {
               onChangeText={setQuery}
               onSubmitEditing={() => { void search(); }}
               placeholder="Deutsch oder Englisch suchen"
-              placeholderTextColor={Colors.textMuted}
+              placeholderTextColor={colors.textMuted}
               autoCapitalize="none"
               autoCorrect={false}
               returnKeyType="search"
@@ -135,7 +139,7 @@ export default function WoerterScreen() {
           </View>
 
           {error ? <Text style={styles.error}>{error}</Text> : null}
-          {loading && <ActivityIndicator color={Colors.textMuted} />}
+          {loading && <ActivityIndicator color={colors.textMuted} />}
 
           {!loading && entries !== null && (
             <>
@@ -162,7 +166,7 @@ export default function WoerterScreen() {
 
           {aiLoading && (
             <View style={styles.aiBox}>
-              <ActivityIndicator color={Colors.textMuted} />
+              <ActivityIndicator color={colors.textMuted} />
               <Text style={styles.muted}>Die KI sucht „{query.trim()}“…</Text>
             </View>
           )}
@@ -204,6 +208,7 @@ export default function WoerterScreen() {
 }
 
 function SegmentButton(props: { label: string; active: boolean; onPress: () => void }) {
+  const styles = useThemedStyles(makeStyles);
   return (
     <TouchableOpacity
       onPress={props.onPress}
@@ -216,26 +221,26 @@ function SegmentButton(props: { label: string; active: boolean; onPress: () => v
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: Colors.bg },
+const makeStyles = (c: ColorTokens) => StyleSheet.create({
+  safe: { flex: 1, backgroundColor: c.bg },
   header: { paddingHorizontal: Space.gutter, paddingVertical: Space.md, gap: Space.md },
-  title: { ...Type.title, color: Colors.white },
+  title: { ...Type.title, color: c.text },
   segment: {
     flexDirection: 'row', padding: 4, borderRadius: Radius.pill, borderWidth: 1,
-    borderColor: Colors.border, backgroundColor: Colors.surface,
+    borderColor: c.border, backgroundColor: c.surface,
   },
   segmentButton: { flex: 1, minHeight: HIT - 8, alignItems: 'center', justifyContent: 'center', borderRadius: Radius.pill },
-  segmentActive: { backgroundColor: Colors.purple },
-  segmentText: { ...Type.body, color: Colors.textMuted },
-  segmentTextActive: { color: Colors.black, fontWeight: '600' },
+  segmentActive: { backgroundColor: c.purple },
+  segmentText: { ...Type.body, color: c.textMuted },
+  segmentTextActive: { color: c.onAccent, fontWeight: '600' },
   content: { padding: Space.gutter, gap: Space.md, paddingBottom: 40 },
   searchRow: { flexDirection: 'row', alignItems: 'center', gap: Space.sm },
   input: {
-    flex: 1, minHeight: HIT, borderRadius: Radius.card, borderWidth: 1, borderColor: Colors.border,
-    backgroundColor: Colors.surface, paddingHorizontal: Space.lg, color: Colors.white, ...Type.body,
+    flex: 1, minHeight: HIT, borderRadius: Radius.card, borderWidth: 1, borderColor: c.border,
+    backgroundColor: c.surface, paddingHorizontal: Space.lg, color: c.text, ...Type.body,
   },
-  error: { ...Type.caption, color: Colors.red },
-  muted: { ...Type.body, color: Colors.textMuted },
-  saved: { ...Type.body, color: Colors.green },
+  error: { ...Type.caption, color: c.red },
+  muted: { ...Type.body, color: c.textMuted },
+  saved: { ...Type.body, color: c.green },
   aiBox: { alignItems: 'center', gap: Space.sm, padding: Space.lg },
 });

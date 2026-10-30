@@ -5,7 +5,11 @@ import {
   Alert, Switch,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Colors, Type, Space, Radius, HIT } from '../../constants/Colors';
+import { Type, Space, Radius, HIT } from '../../constants/Colors';
+import type { ColorTokens } from '../../constants/Colors';
+import { useThemedStyles, useTheme } from '../../context/theme';
+import type { ThemeMode } from '../../lib/theme';
+import { SegmentedToggle } from '../../components/SegmentedToggle';
 import { Eyebrow, PillButton, StatPair } from '../../components';
 import { useAuth } from '../../context/auth';
 import { levelsOf, updateLevels, updateDisplayName } from '../../lib/profile';
@@ -30,6 +34,8 @@ const LEVEL_NAMES_EN: Record<CEFRLevel, string> = {
 };
 
 export default function ProfileScreen() {
+  const { colors, mode, setMode } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const router = useRouter();
   const { user, profile, loading, signOut, refreshProfile } = useAuth();
   const { lang, t } = useI18n();
@@ -160,7 +166,7 @@ export default function ProfileScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.safe}>
-        <View style={styles.center}><ActivityIndicator color={Colors.textMuted} /></View>
+        <View style={styles.center}><ActivityIndicator color={colors.textMuted} /></View>
       </SafeAreaView>
     );
   }
@@ -203,7 +209,7 @@ export default function ProfileScreen() {
             onBlur={saveName}
             onSubmitEditing={saveName}
             placeholder="Dein Name"
-            placeholderTextColor={Colors.textMuted}
+            placeholderTextColor={colors.textMuted}
             returnKeyType="done"
             accessibilityLabel="Anzeigename"
           />
@@ -212,7 +218,7 @@ export default function ProfileScreen() {
         {/* Level — the single source of truth */}
         <View>
           <View style={styles.gutter}>
-            <Eyebrow right={savingLevel ? <ActivityIndicator size="small" color={Colors.textMuted} /> : undefined}>
+            <Eyebrow right={savingLevel ? <ActivityIndicator size="small" color={colors.textMuted} /> : undefined}>
               {t('Niveau', 'Level')}
             </Eyebrow>
           </View>
@@ -257,7 +263,7 @@ export default function ProfileScreen() {
           <Eyebrow>{t('Heute', 'Today')}</Eyebrow>
           <View style={styles.card}>
             <View style={styles.statRow}>
-              <StatPair value={streak} label={t('Tage Serie', 'Day streak')} color={Colors.gold} />
+              <StatPair value={streak} label={t('Tage Serie', 'Day streak')} color={colors.gold} />
               <StatPair value={`${minutes}/${DAILY_MINUTES_GOAL}`} label={t('Minuten', 'Minutes')} />
               <StatPair value={cards} label={t('Karten', 'Cards')} />
             </View>
@@ -287,6 +293,20 @@ export default function ProfileScreen() {
           </View>
         </View>
 
+        {/* Darstellung: follow the phone, or force light or dark. Kept on this device. */}
+        <View style={styles.gutter}>
+          <Eyebrow>{t('Darstellung', 'Appearance')}</Eyebrow>
+          <SegmentedToggle<ThemeMode>
+            value={mode}
+            onChange={setMode}
+            options={[
+              { value: 'system', label: t('System', 'System') },
+              { value: 'light', label: t('Hell', 'Light') },
+              { value: 'dark', label: t('Dunkel', 'Dark') },
+            ]}
+          />
+        </View>
+
         <View style={styles.gutter}>
           <Eyebrow>{t('Fotos auswerten', 'Photo analysis')}</Eyebrow>
           <View style={styles.consentRow}>
@@ -297,13 +317,13 @@ export default function ProfileScreen() {
               )}
             </Text>
             {consentBusy
-              ? <ActivityIndicator color={Colors.textMuted} />
+              ? <ActivityIndicator color={colors.textMuted} />
               : (
                 <Switch
                   value={!!profile?.scan_consent_at}
                   onValueChange={toggleScanConsent}
-                  trackColor={{ false: Colors.surface3, true: Colors.purple }}
-                  thumbColor={Colors.white}
+                  trackColor={{ false: colors.surface3, true: colors.purple }}
+                  thumbColor={colors.inverseFill}
                   accessibilityRole="switch"
                   accessibilityLabel={t('Fotos zur Auswertung senden', 'Send photos for analysis')}
                 />
@@ -323,62 +343,62 @@ export default function ProfileScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: ColorTokens) => StyleSheet.create({
   consentRow: { flexDirection: 'row', alignItems: 'center', gap: Space.md },
-  consentText: { ...Type.caption, color: Colors.textMuted, flex: 1 },
-  consentError: { ...Type.caption, color: Colors.red },
-  safe: { flex: 1, backgroundColor: Colors.bg },
+  consentText: { ...Type.caption, color: c.textMuted, flex: 1 },
+  consentError: { ...Type.caption, color: c.red },
+  safe: { flex: 1, backgroundColor: c.bg },
   content: { paddingTop: Space.lg, paddingBottom: 40, gap: Space.xxl },
   gutter: { paddingHorizontal: Space.gutter, gap: Space.sm },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Space.sm, paddingHorizontal: Space.gutter },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: Space.gutter, gap: Space.sm },
 
-  title: { ...Type.title, color: Colors.white },
-  email: { ...Type.caption, color: Colors.textMuted },
+  title: { ...Type.title, color: c.text },
+  email: { ...Type.caption, color: c.textMuted },
 
   input: {
     minHeight: HIT,
-    backgroundColor: Colors.surface,
+    backgroundColor: c.surface,
     borderRadius: Radius.tile,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Colors.border,
+    borderColor: c.border,
     paddingHorizontal: Space.lg,
     ...Type.body,
-    color: Colors.white,
+    color: c.text,
   },
 
   levelChip: {
     minWidth: HIT, minHeight: HIT, paddingHorizontal: Space.md,
     alignItems: 'center', justifyContent: 'center',
-    borderRadius: Radius.pill, borderWidth: 1, borderColor: Colors.textMuted,
+    borderRadius: Radius.pill, borderWidth: 1, borderColor: c.textMuted,
   },
-  levelChipOn: { borderColor: Colors.purple, backgroundColor: Colors.purpleBg },
-  levelChipText: { ...Type.meta, color: Colors.textMuted },
-  levelChipTextOn: { color: Colors.white },
-  levelName: { ...Type.bodyL, color: Colors.white },
-  levelHint: { ...Type.caption, color: Colors.textMuted },
+  levelChipOn: { borderColor: c.purple, backgroundColor: c.purpleBg },
+  levelChipText: { ...Type.meta, color: c.textMuted },
+  levelChipTextOn: { color: c.text },
+  levelName: { ...Type.bodyL, color: c.text },
+  levelHint: { ...Type.caption, color: c.textMuted },
   levelLink: { minHeight: HIT, justifyContent: 'center' },
-  levelLinkText: { ...Type.caption, color: Colors.purple },
+  levelLinkText: { ...Type.caption, color: c.purple },
 
   card: {
-    backgroundColor: Colors.surface,
+    backgroundColor: c.surface,
     borderRadius: Radius.card,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Colors.border,
+    borderColor: c.border,
     padding: 18,
     gap: Space.lg,
   },
   statRow: { flexDirection: 'row', gap: Space.xxl, flexWrap: 'wrap' },
-  divider: { height: StyleSheet.hairlineWidth, backgroundColor: Colors.border },
+  divider: { height: StyleSheet.hairlineWidth, backgroundColor: c.border },
 
   linkRow: {
     minHeight: HIT,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: Colors.border,
+    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.border,
   },
-  linkLabel: { ...Type.body, color: Colors.white },
-  linkChevron: { ...Type.title, fontSize: 22, lineHeight: 24, color: Colors.textMuted },
+  linkLabel: { ...Type.body, color: c.text },
+  linkChevron: { ...Type.title, fontSize: 22, lineHeight: 24, color: c.textMuted },
 
-  emptyTitle: { ...Type.title, fontSize: 24, lineHeight: 28, color: Colors.white, textAlign: 'center' },
-  emptyBody: { ...Type.body, color: Colors.textMuted, textAlign: 'center' },
+  emptyTitle: { ...Type.title, fontSize: 24, lineHeight: 28, color: c.text, textAlign: 'center' },
+  emptyBody: { ...Type.body, color: c.textMuted, textAlign: 'center' },
 });

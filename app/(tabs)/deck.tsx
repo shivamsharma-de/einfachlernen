@@ -38,7 +38,9 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as Speech from 'expo-speech';
-import { ARTICLE_COLOR, Colors, Radius, Space, Type } from '../../constants/Colors';
+import { articleColor, Radius, Space, Type } from '../../constants/Colors';
+import type { ColorTokens } from '../../constants/Colors';
+import { useThemedStyles, useTheme } from '../../context/theme';
 import { Eyebrow, GradeRow, LevelBadge, PillButton } from '../../components';
 import { useAuth } from '../../context/auth';
 import { useDeckSession } from '../../hooks/useDeckSession';
@@ -51,6 +53,8 @@ const GRADE_LEARNED: Grade = 2; // swipe right → Gut
 const GRADE_AGAIN: Grade = 0;   // swipe left  → Nochmal
 
 export default function DeckScreen() {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const { user, profile } = useAuth();
   const router = useRouter();
   const levels = levelsOf(profile);
@@ -84,7 +88,7 @@ export default function DeckScreen() {
     return (
       <SafeAreaView style={styles.safe}>
         <View style={styles.center}>
-          <ActivityIndicator color={Colors.textMuted} />
+          <ActivityIndicator color={colors.textMuted} />
           <Text style={styles.stateBody}>Deck wird geladen…</Text>
         </View>
       </SafeAreaView>
@@ -187,7 +191,7 @@ export default function DeckScreen() {
             accessibilityLabel="Restliche Karten mischen"
             style={styles.shuffle}
           >
-            <Ionicons name="shuffle" size={13} color={Colors.white} />
+            <Ionicons name="shuffle" size={13} color={colors.text} />
             <Text style={styles.shuffleLabel}>Mischen</Text>
           </TouchableOpacity>
         </View>
@@ -224,6 +228,8 @@ function SwipeCard({
   onSwipeRight: () => void;
   onSwipeLeft: () => void;
 }) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const { width } = useWindowDimensions();
   const threshold = Math.min(120, width * 0.28);
 
@@ -390,13 +396,13 @@ function SwipeCard({
         style={[styles.stamp, styles.stampRight, { opacity: learnedOpacity }]}
         pointerEvents="none"
       >
-        <Text style={[styles.stampText, { color: Colors.green }]}>Gelernt</Text>
+        <Text style={[styles.stampText, { color: colors.green }]}>Gelernt</Text>
       </Animated.View>
       <Animated.View
         style={[styles.stamp, styles.stampLeft, { opacity: againOpacity }]}
         pointerEvents="none"
       >
-        <Text style={[styles.stampText, { color: Colors.red }]}>Nochmal</Text>
+        <Text style={[styles.stampText, { color: colors.red }]}>Nochmal</Text>
       </Animated.View>
     </Animated.View>
   );
@@ -404,6 +410,7 @@ function SwipeCard({
 
 /** D13: English meaning + level badge. Nothing else — the German is the answer. */
 function CardFront({ card }: { card: DeckCard }) {
+  const styles = useThemedStyles(makeStyles);
   return (
     <View style={styles.frontInner}>
       <LevelBadge level={card.word.level} />
@@ -417,6 +424,8 @@ function CardBack({ card, enrichment, enriching }: {
   enrichment: WordEnrichment | null;
   enriching: boolean;
 }) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const word = card.word;
   const grammar = grammarLine(word, enrichment);
   const examples = examplesFor(word, enrichment);
@@ -446,13 +455,13 @@ function CardBack({ card, enrichment, enriching }: {
           accessibilityRole="button"
           accessibilityLabel={`${word.german} anhören`}
         >
-          <Ionicons name="volume-medium-outline" size={18} color={Colors.white} />
+          <Ionicons name="volume-medium-outline" size={18} color={colors.text} />
         </TouchableOpacity>
       </View>
 
       <View style={styles.headwordBlock}>
         {word.article && (
-          <Text style={[styles.article, { color: ARTICLE_COLOR[word.article] }]}>{word.article}</Text>
+          <Text style={[styles.article, { color: articleColor(colors)[word.article] }]}>{word.article}</Text>
         )}
         {/* Never truncated — German compounds wrap instead (design-spec §8). */}
         <Text style={styles.headword}>{word.german}</Text>
@@ -492,6 +501,7 @@ function StateScreen({ eyebrow, title, body, action, secondary }: {
   action?: { label: string; onPress: () => void };
   secondary?: { label: string; onPress: () => void };
 }) {
+  const styles = useThemedStyles(makeStyles);
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.center}>
@@ -514,17 +524,17 @@ function StateScreen({ eyebrow, title, body, action, secondary }: {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: Colors.bg },
+const makeStyles = (c: ColorTokens) => StyleSheet.create({
+  safe: { flex: 1, backgroundColor: c.bg },
   center: {
     flex: 1, alignItems: 'center', justifyContent: 'center',
     padding: Space.gutter, gap: Space.sm,
   },
 
   header: { paddingHorizontal: Space.gutter, paddingTop: Space.md, gap: Space.sm },
-  xp: { ...Type.meta, color: Colors.gold },
-  barBg: { height: 4, borderRadius: 2, backgroundColor: Colors.surface3, overflow: 'hidden' },
-  barFill: { height: '100%', borderRadius: 2, backgroundColor: Colors.purple },
+  xp: { ...Type.meta, color: c.goldText },
+  barBg: { height: 4, borderRadius: 2, backgroundColor: c.surface3, overflow: 'hidden' },
+  barFill: { height: '100%', borderRadius: 2, backgroundColor: c.purple },
 
   cardArea: {
     flex: 1, justifyContent: 'center',
@@ -536,17 +546,17 @@ const styles = StyleSheet.create({
   stackPeek: {
     position: 'absolute',
     left: 10, right: 10, top: 8, bottom: -8,
-    backgroundColor: Colors.surface2,
+    backgroundColor: c.surface2,
     borderRadius: Radius.card,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Colors.border,
+    borderColor: c.border,
   },
 
   cardWrap: {
-    backgroundColor: Colors.surface,
+    backgroundColor: c.surface,
     borderRadius: Radius.card,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Colors.border,
+    borderColor: c.border,
     overflow: 'hidden',
   },
   pressArea: { flex: 1 },
@@ -558,41 +568,41 @@ const styles = StyleSheet.create({
     flex: 1, alignItems: 'center', justifyContent: 'center',
     padding: Space.xl, gap: Space.lg,
   },
-  english: { ...Type.title, fontSize: 28, lineHeight: 34, color: Colors.white, textAlign: 'center' },
+  english: { ...Type.title, fontSize: 28, lineHeight: 34, color: c.text, textAlign: 'center' },
 
   backScroll: { flex: 1 },
   backInner: { padding: Space.xl, gap: Space.md, flexGrow: 1, justifyContent: 'center' },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: Space.sm },
   metaSpacer: { flex: 1 },
-  wordType: { ...Type.eyebrow, color: Colors.textMuted },
+  wordType: { ...Type.eyebrow, color: c.textMuted },
   originTag: {
-    backgroundColor: Colors.purpleBg,
+    backgroundColor: c.purpleBg,
     borderRadius: Radius.chip,
     paddingHorizontal: 6,
     paddingVertical: 2,
   },
-  originTagText: { ...Type.eyebrow, color: Colors.white },
+  originTagText: { ...Type.eyebrow, color: c.text },
   speak: {
     width: 34, height: 34, borderRadius: Radius.pill,
     alignItems: 'center', justifyContent: 'center',
-    backgroundColor: Colors.surface2,
+    backgroundColor: c.surface2,
   },
 
   headwordBlock: { gap: 2 },
   article: { ...Type.meta, fontSize: 13 },
-  headword: { ...Type.headword, color: Colors.white },
-  grammar: { ...Type.meta, color: Colors.textMuted },
+  headword: { ...Type.headword, color: c.text },
+  grammar: { ...Type.meta, color: c.textMuted },
 
   examples: {
     gap: Space.md,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: Colors.border,
+    borderTopColor: c.border,
     paddingTop: Space.md,
   },
   example: { gap: 2 },
-  exampleDe: { ...Type.body, fontSize: 15, lineHeight: 22, color: Colors.white },
-  exampleEn: { ...Type.caption, color: Colors.textMuted },
-  skeleton: { height: 12, borderRadius: 4, backgroundColor: Colors.surface3 },
+  exampleDe: { ...Type.body, fontSize: 15, lineHeight: 22, color: c.text },
+  exampleEn: { ...Type.caption, color: c.textMuted },
+  skeleton: { height: 12, borderRadius: 4, backgroundColor: c.surface3 },
   skeletonWide: { width: '90%' },
   skeletonNarrow: { width: '65%' },
 
@@ -600,26 +610,26 @@ const styles = StyleSheet.create({
     position: 'absolute', top: Space.lg,
     borderWidth: 1.5, borderRadius: Radius.chip,
     paddingHorizontal: Space.md, paddingVertical: 6,
-    backgroundColor: Colors.black,
+    backgroundColor: c.backdrop,
   },
-  stampRight: { left: Space.lg, borderColor: Colors.green, transform: [{ rotate: '-8deg' }] },
-  stampLeft: { right: Space.lg, borderColor: Colors.red, transform: [{ rotate: '8deg' }] },
+  stampRight: { left: Space.lg, borderColor: c.green, transform: [{ rotate: '-8deg' }] },
+  stampLeft: { right: Space.lg, borderColor: c.red, transform: [{ rotate: '8deg' }] },
   stampText: { ...Type.bodyL, fontSize: 14, letterSpacing: 0.5 },
 
   footer: { paddingHorizontal: Space.gutter, paddingBottom: Space.lg, gap: Space.md },
   hintRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  hint: { ...Type.eyebrow, color: Colors.textMuted, flexShrink: 1 },
+  hint: { ...Type.eyebrow, color: c.textMuted, flexShrink: 1 },
   shuffle: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
-    borderWidth: StyleSheet.hairlineWidth, borderColor: Colors.border,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: c.border,
     borderRadius: Radius.pill,
     paddingHorizontal: Space.md, paddingVertical: 7,
   },
-  shuffleLabel: { ...Type.eyebrow, color: Colors.white },
+  shuffleLabel: { ...Type.eyebrow, color: c.text },
 
-  stateXp: { ...Type.display, fontSize: 44, lineHeight: 48, color: Colors.gold },
-  stateTitle: { ...Type.title, fontSize: 24, lineHeight: 28, color: Colors.white, textAlign: 'center' },
-  stateBody: { ...Type.body, color: Colors.textMuted, textAlign: 'center' },
+  stateXp: { ...Type.display, fontSize: 44, lineHeight: 48, color: c.goldText },
+  stateTitle: { ...Type.title, fontSize: 24, lineHeight: 28, color: c.text, textAlign: 'center' },
+  stateBody: { ...Type.body, color: c.textMuted, textAlign: 'center' },
   stateAction: { marginTop: Space.md, minWidth: 220 },
   stateSecondary: { minWidth: 220 },
 });

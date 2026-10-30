@@ -1,6 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Colors, Type, Radius, GRADES, HIT } from '../constants/Colors';
+import { Type, Radius, gradesFor, HIT } from '../constants/Colors';
+import type { ColorTokens } from '../constants/Colors';
+import { useThemedStyles, useTheme } from '../context/theme';
 
 /** The four SRS grade buttons: Nochmal / Schwer / Gut / Leicht.
  *
@@ -13,9 +15,11 @@ export function GradeRow({ intervals, onGrade }: {
   intervals: readonly [string, string, string, string];
   onGrade: (grade: 0 | 1 | 2 | 3) => void;
 }) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   return (
     <View style={styles.row}>
-      {GRADES.map((grade, i) => (
+      {gradesFor(colors).map((grade, i) => (
         <TouchableOpacity
           key={grade.key}
           style={[styles.button, { backgroundColor: grade.bg, borderColor: grade.color + '66' }]}
@@ -32,7 +36,7 @@ export function GradeRow({ intervals, onGrade }: {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: ColorTokens) => StyleSheet.create({
   // 4-column grid, 7px gaps (§4).
   row: { flexDirection: 'row', gap: 7 },
   button: {
@@ -47,5 +51,5 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   label: { ...Type.bodyL, fontSize: 13.5, textAlign: 'center' },
-  interval: { ...Type.eyebrow, color: Colors.textMuted, textAlign: 'center' },
+  interval: { ...Type.eyebrow, color: c.textMuted, textAlign: 'center' },
 });

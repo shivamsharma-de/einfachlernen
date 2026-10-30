@@ -6,18 +6,19 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '../../constants/Colors';
+import type { ColorTokens } from '../../constants/Colors';
+import { useThemedStyles, useTheme } from '../../context/theme';
 import { CEFRLevel, Word } from '../../types';
 import { fetchWordsByLevel } from '../../lib/db';
 import { useGameState } from '../../hooks/useGameState';
 
 const { width } = Dimensions.get('window');
 
-const ARTICLE_COLOR: Record<string, string> = {
-  der: Colors.articleDer,
-  die: Colors.articleDie,
-  das: Colors.articleDas,
-};
+const articleTint = (c: ColorTokens): Record<string, string> => ({
+  der: c.articleDer,
+  die: c.articleDie,
+  das: c.articleDas,
+});
 
 const HINT_CONFIG = [
   { key: 'context',   icon: '💬', label: 'Context',   cost: 10 },
@@ -28,6 +29,8 @@ const HINT_CONFIG = [
 
 // ─── Loader wrapper ───────────────────────────────────────────────────────────
 export default function QuizScreen() {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const router = useRouter();
   const params = useLocalSearchParams<{ levels?: string }>();
   const levels = (params.levels ?? 'A1').split(',') as CEFRLevel[];
@@ -61,7 +64,7 @@ export default function QuizScreen() {
     return (
       <SafeAreaView style={styles.safe}>
         <View style={styles.centerBox}>
-          <ActivityIndicator color={Colors.gold} size="large" />
+          <ActivityIndicator color={colors.gold} size="large" />
           <Text style={styles.loadingText}>Loading words…</Text>
         </View>
       </SafeAreaView>
@@ -71,13 +74,15 @@ export default function QuizScreen() {
   return <QuizGame words={words} onExit={() => router.replace('/(tabs)')} />;
 }
 
-const LEVEL_COLORS: Record<string, string> = {
-  A1: Colors.levelA1, A2: Colors.levelA2, B1: Colors.levelB1,
-  B2: Colors.levelB2, C1: Colors.levelC1, C2: Colors.levelC2,
-};
+const levelTint = (c: ColorTokens): Record<string, string> => ({
+  A1: c.levelA1, A2: c.levelA2, B1: c.levelB1,
+  B2: c.levelB2, C1: c.levelC1, C2: c.levelC2,
+});
 
 // ─── Game ─────────────────────────────────────────────────────────────────────
 function QuizGame({ words, onExit }: { words: Word[]; onExit: () => void }) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const router = useRouter();
   const game = useGameState(words, 10);
   const {
@@ -162,7 +167,7 @@ function QuizGame({ words, onExit }: { words: Word[]; onExit: () => void }) {
   }
 
   const word = current.word;
-  const levelColor = LEVEL_COLORS[word.level] ?? Colors.gold;
+  const levelColor = levelTint(colors)[word.level] ?? colors.gold;
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -174,7 +179,7 @@ function QuizGame({ words, onExit }: { words: Word[]; onExit: () => void }) {
             style={styles.backBtn}
             onPress={() => canGoBack ? back() : router.back()}
           >
-            <Ionicons name="arrow-back" size={18} color={canGoBack ? Colors.gold : Colors.white} />
+            <Ionicons name="arrow-back" size={18} color={canGoBack ? colors.gold : colors.text} />
           </TouchableOpacity>
           <View style={styles.progressWrap}>
             <View style={styles.progressBg}>
@@ -210,7 +215,7 @@ function QuizGame({ words, onExit }: { words: Word[]; onExit: () => void }) {
           <Text style={styles.wordType}>{word.word_type.toUpperCase()}</Text>
 
           {word.article ? (
-            <Text style={[styles.article, { color: ARTICLE_COLOR[word.article] ?? Colors.textMuted }]}>
+            <Text style={[styles.article, { color: articleTint(colors)[word.article] ?? colors.textMuted }]}>
               {word.article}
             </Text>
           ) : null}
@@ -231,7 +236,7 @@ function QuizGame({ words, onExit }: { words: Word[]; onExit: () => void }) {
             <View style={styles.letterBox}>
               <Text style={styles.letterHint}>
                 🔡 First letter:{' '}
-                <Text style={{ color: Colors.gold, fontWeight: '800' }}>
+                <Text style={{ color: colors.goldText, fontWeight: '800' }}>
                   {word.english.charAt(0).toUpperCase()}…
                 </Text>
               </Text>
@@ -273,8 +278,8 @@ function QuizGame({ words, onExit }: { words: Word[]; onExit: () => void }) {
               ? isCorrectAnswer ? styles.optionCorrect : isSelected ? styles.optionWrong : null
               : null;
             const textColor = answerState !== 'unanswered'
-              ? isCorrectAnswer ? Colors.green : isSelected ? Colors.red : Colors.white
-              : Colors.white;
+              ? isCorrectAnswer ? colors.green : isSelected ? colors.red : colors.text
+              : colors.text;
 
             return (
               <TouchableOpacity
@@ -358,6 +363,8 @@ function ResultScreen({ correct, total, xp, onReplay, onHome }: {
   correct: number; total: number; xp: number;
   onReplay: () => void; onHome: () => void;
 }) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const pct = Math.round((correct / total) * 100);
   const emoji = pct >= 80 ? '🏆' : pct >= 60 ? '👍' : '💪';
   const msg = pct >= 80 ? 'Outstanding!' : pct >= 60 ? 'Good job!' : 'Keep practising!';
@@ -369,9 +376,9 @@ function ResultScreen({ correct, total, xp, onReplay, onHome }: {
         <Text style={styles.resultTitle}>{msg}</Text>
         <Text style={styles.resultSub}>Session complete</Text>
         <View style={styles.resultStats}>
-          <StatBox label="Correct" value={`${correct}/${total}`} color={Colors.green} />
-          <StatBox label="Score"   value={`${pct}%`}            color={Colors.gold} />
-          <StatBox label="XP"      value={`+${xp}`}             color={Colors.purple} />
+          <StatBox label="Correct" value={`${correct}/${total}`} color={colors.green} />
+          <StatBox label="Score"   value={`${pct}%`}            color={colors.gold} />
+          <StatBox label="XP"      value={`+${xp}`}             color={colors.purple} />
         </View>
         <TouchableOpacity style={styles.replayBtn} onPress={onReplay}>
           <Text style={styles.replayBtnText}>Play Again ↺</Text>
@@ -385,6 +392,7 @@ function ResultScreen({ correct, total, xp, onReplay, onHome }: {
 }
 
 function StatBox({ label, value, color }: { label: string; value: string; color: string }) {
+  const styles = useThemedStyles(makeStyles);
   return (
     <View style={styles.statBox}>
       <Text style={[styles.statValue, { color }]}>{value}</Text>
@@ -393,91 +401,91 @@ function StatBox({ label, value, color }: { label: string; value: string; color:
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: Colors.bg },
+const makeStyles = (c: ColorTokens) => StyleSheet.create({
+  safe: { flex: 1, backgroundColor: c.bg },
   scroll: { paddingHorizontal: 20, paddingTop: 8 },
   centerBox: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 16 },
-  loadingText: { color: Colors.textMuted, fontSize: 14, marginTop: 12 },
-  errorText: { color: Colors.red, fontSize: 15 },
-  retryBtn: { backgroundColor: Colors.surface, borderRadius: 12, paddingHorizontal: 24, paddingVertical: 12, borderWidth: 1, borderColor: Colors.border },
-  retryBtnText: { color: Colors.white, fontWeight: '600' },
+  loadingText: { color: c.textMuted, fontSize: 14, marginTop: 12 },
+  errorText: { color: c.red, fontSize: 15 },
+  retryBtn: { backgroundColor: c.surface, borderRadius: 12, paddingHorizontal: 24, paddingVertical: 12, borderWidth: 1, borderColor: c.border },
+  retryBtnText: { color: c.text, fontWeight: '600' },
 
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16 },
-  backBtn: { width: 38, height: 38, borderRadius: 12, backgroundColor: Colors.surface, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: Colors.border },
+  backBtn: { width: 38, height: 38, borderRadius: 12, backgroundColor: c.surface, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: c.border },
   progressWrap: { flex: 1 },
-  progressBg: { height: 8, backgroundColor: Colors.surface3, borderRadius: 4, overflow: 'hidden' },
-  progressFill: { height: '100%', backgroundColor: Colors.gold, borderRadius: 4 },
-  progressLabel: { color: Colors.textMuted, fontSize: 11, textAlign: 'right', marginTop: 4 },
+  progressBg: { height: 8, backgroundColor: c.surface3, borderRadius: 4, overflow: 'hidden' },
+  progressFill: { height: '100%', backgroundColor: c.gold, borderRadius: 4 },
+  progressLabel: { color: c.textMuted, fontSize: 11, textAlign: 'right', marginTop: 4 },
   heartsRow: { flexDirection: 'row', gap: 2 },
   heart: { fontSize: 14 },
 
   tagRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 },
   levelTag: { paddingHorizontal: 12, paddingVertical: 5, borderRadius: 20, borderWidth: 1 },
   levelTagText: { fontSize: 12, fontWeight: '700' },
-  xpBadge: { backgroundColor: Colors.goldBg, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
-  xpBadgeText: { color: Colors.gold, fontSize: 12, fontWeight: '700' },
+  xpBadge: { backgroundColor: c.goldBg, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
+  xpBadgeText: { color: c.goldText, fontSize: 12, fontWeight: '700' },
 
-  wordCard: { backgroundColor: Colors.surface, borderRadius: 20, padding: 24, alignItems: 'center', borderWidth: 1, borderColor: Colors.border, marginBottom: 14 },
-  wordType: { color: Colors.textMuted, fontSize: 11, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 8 },
+  wordCard: { backgroundColor: c.surface, borderRadius: 20, padding: 24, alignItems: 'center', borderWidth: 1, borderColor: c.border, marginBottom: 14 },
+  wordType: { color: c.textMuted, fontSize: 11, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 8 },
   article: { fontSize: 16, fontWeight: '600', marginBottom: 4 },
-  mainWord: { color: Colors.white, fontSize: 40, fontWeight: '900', letterSpacing: -1, textAlign: 'center' },
-  pronunciation: { color: Colors.textMuted, fontSize: 14, fontStyle: 'italic', marginTop: 6 },
+  mainWord: { color: c.text, fontSize: 40, fontWeight: '900', letterSpacing: -1, textAlign: 'center' },
+  pronunciation: { color: c.textMuted, fontSize: 14, fontStyle: 'italic', marginTop: 6 },
 
-  contextBox: { marginTop: 14, backgroundColor: Colors.surface2, borderRadius: 12, padding: 12, width: '100%', borderLeftWidth: 3, borderLeftColor: Colors.purple },
-  contextLabel: { color: Colors.textMuted, fontSize: 10, fontWeight: '700', textTransform: 'uppercase', marginBottom: 4 },
-  contextText: { color: Colors.white, fontSize: 14, fontStyle: 'italic' },
-  contextTranslation: { color: Colors.textMuted, fontSize: 12, marginTop: 4 },
-  letterBox: { marginTop: 12, backgroundColor: Colors.surface2, borderRadius: 10, padding: 10, width: '100%' },
-  letterHint: { color: Colors.textMuted, fontSize: 14 },
-  imageHintBox: { marginTop: 12, backgroundColor: Colors.goldBg, borderRadius: 10, padding: 12, width: '100%', borderWidth: 1, borderColor: Colors.gold + '33' },
-  imageHintText: { color: Colors.gold, fontSize: 13 },
+  contextBox: { marginTop: 14, backgroundColor: c.surface2, borderRadius: 12, padding: 12, width: '100%', borderLeftWidth: 3, borderLeftColor: c.purple },
+  contextLabel: { color: c.textMuted, fontSize: 10, fontWeight: '700', textTransform: 'uppercase', marginBottom: 4 },
+  contextText: { color: c.text, fontSize: 14, fontStyle: 'italic' },
+  contextTranslation: { color: c.textMuted, fontSize: 12, marginTop: 4 },
+  letterBox: { marginTop: 12, backgroundColor: c.surface2, borderRadius: 10, padding: 10, width: '100%' },
+  letterHint: { color: c.textMuted, fontSize: 14 },
+  imageHintBox: { marginTop: 12, backgroundColor: c.goldBg, borderRadius: 10, padding: 12, width: '100%', borderWidth: 1, borderColor: c.gold + '33' },
+  imageHintText: { color: c.goldText, fontSize: 13 },
 
   hintsRow: { flexDirection: 'row', gap: 8, marginBottom: 18 },
-  hintBtn: { flex: 1, backgroundColor: Colors.surface, borderRadius: 12, padding: 10, alignItems: 'center', gap: 3, borderWidth: 1, borderColor: Colors.border },
+  hintBtn: { flex: 1, backgroundColor: c.surface, borderRadius: 12, padding: 10, alignItems: 'center', gap: 3, borderWidth: 1, borderColor: c.border },
   hintBtnUsed: { opacity: 0.4 },
   hintIcon: { fontSize: 18 },
-  hintLabel: { color: Colors.textMuted, fontSize: 10, textAlign: 'center' },
-  hintCost: { color: Colors.gold, fontSize: 10, fontWeight: '700' },
+  hintLabel: { color: c.textMuted, fontSize: 10, textAlign: 'center' },
+  hintCost: { color: c.goldText, fontSize: 10, fontWeight: '700' },
 
-  questionText: { color: Colors.textMuted, fontSize: 14, textAlign: 'center', marginBottom: 14 },
+  questionText: { color: c.textMuted, fontSize: 14, textAlign: 'center', marginBottom: 14 },
 
   optionsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 16 },
-  optionBtn: { width: (width - 50) / 2, backgroundColor: Colors.surface, borderRadius: 14, padding: 16, borderWidth: 1.5, borderColor: Colors.border, gap: 4 },
-  optionCorrect: { borderColor: Colors.green, backgroundColor: Colors.greenBg },
-  optionWrong: { borderColor: Colors.red, backgroundColor: Colors.redBg },
+  optionBtn: { width: (width - 50) / 2, backgroundColor: c.surface, borderRadius: 14, padding: 16, borderWidth: 1.5, borderColor: c.border, gap: 4 },
+  optionCorrect: { borderColor: c.green, backgroundColor: c.greenBg },
+  optionWrong: { borderColor: c.red, backgroundColor: c.redBg },
   optionEliminated: { opacity: 0.2 },
-  optionLetter: { color: Colors.textMuted, fontSize: 10, fontWeight: '600' },
+  optionLetter: { color: c.textMuted, fontSize: 10, fontWeight: '600' },
   optionText: { fontSize: 15, fontWeight: '600', lineHeight: 20 },
 
   feedbackBar: { borderRadius: 14, padding: 16, marginBottom: 14, gap: 4 },
-  feedbackCorrect: { backgroundColor: Colors.greenBg, borderWidth: 1, borderColor: Colors.green + '44' },
-  feedbackWrong: { backgroundColor: Colors.redBg, borderWidth: 1, borderColor: Colors.red + '44' },
-  feedbackTitle: { color: Colors.white, fontWeight: '700', fontSize: 15 },
-  feedbackText: { color: Colors.textMuted, fontSize: 13, fontStyle: 'italic' },
-  feedbackSub: { color: Colors.textDim, fontSize: 12 },
+  feedbackCorrect: { backgroundColor: c.greenBg, borderWidth: 1, borderColor: c.green + '44' },
+  feedbackWrong: { backgroundColor: c.redBg, borderWidth: 1, borderColor: c.red + '44' },
+  feedbackTitle: { color: c.text, fontWeight: '700', fontSize: 15 },
+  feedbackText: { color: c.textMuted, fontSize: 13, fontStyle: 'italic' },
+  feedbackSub: { color: c.textDim, fontSize: 12 },
 
   nextBtn: {
     borderRadius: 14, paddingVertical: 15, alignItems: 'center', marginBottom: 12,
-    overflow: 'hidden', backgroundColor: Colors.goldDark,
-    borderWidth: 1, borderColor: Colors.gold,
+    overflow: 'hidden', backgroundColor: c.goldDark,
+    borderWidth: 1, borderColor: c.gold,
   },
   nextBtnFill: {
     position: 'absolute', left: 0, top: 0, bottom: 0,
-    backgroundColor: Colors.gold,
+    backgroundColor: c.gold,
   },
-  nextBtnReview: { backgroundColor: Colors.gold, borderColor: Colors.gold },
-  nextBtnText: { color: Colors.black, fontWeight: '800', fontSize: 16, zIndex: 1 },
+  nextBtnReview: { backgroundColor: c.gold, borderColor: c.gold },
+  nextBtnText: { color: c.onAccent, fontWeight: '800', fontSize: 16, zIndex: 1 },
 
   resultContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 12 },
   resultEmoji: { fontSize: 64, marginBottom: 8 },
-  resultTitle: { color: Colors.white, fontSize: 28, fontWeight: '900' },
-  resultSub: { color: Colors.textMuted, fontSize: 14 },
+  resultTitle: { color: c.text, fontSize: 28, fontWeight: '900' },
+  resultSub: { color: c.textMuted, fontSize: 14 },
   resultStats: { flexDirection: 'row', gap: 16, marginVertical: 24 },
-  statBox: { alignItems: 'center', backgroundColor: Colors.surface, borderRadius: 14, padding: 16, minWidth: 90, borderWidth: 1, borderColor: Colors.border },
+  statBox: { alignItems: 'center', backgroundColor: c.surface, borderRadius: 14, padding: 16, minWidth: 90, borderWidth: 1, borderColor: c.border },
   statValue: { fontSize: 22, fontWeight: '900' },
-  statLabel: { color: Colors.textMuted, fontSize: 12, marginTop: 4 },
-  replayBtn: { backgroundColor: Colors.gold, borderRadius: 14, paddingVertical: 14, paddingHorizontal: 32, width: '100%', alignItems: 'center', marginTop: 8 },
-  replayBtnText: { color: Colors.black, fontWeight: '800', fontSize: 16 },
-  homeBtn: { backgroundColor: Colors.surface, borderRadius: 14, paddingVertical: 13, paddingHorizontal: 32, width: '100%', alignItems: 'center', borderWidth: 1, borderColor: Colors.border },
-  homeBtnText: { color: Colors.textMuted, fontWeight: '600', fontSize: 15 },
+  statLabel: { color: c.textMuted, fontSize: 12, marginTop: 4 },
+  replayBtn: { backgroundColor: c.gold, borderRadius: 14, paddingVertical: 14, paddingHorizontal: 32, width: '100%', alignItems: 'center', marginTop: 8 },
+  replayBtnText: { color: c.onAccent, fontWeight: '800', fontSize: 16 },
+  homeBtn: { backgroundColor: c.surface, borderRadius: 14, paddingVertical: 13, paddingHorizontal: 32, width: '100%', alignItems: 'center', borderWidth: 1, borderColor: c.border },
+  homeBtnText: { color: c.textMuted, fontWeight: '600', fontSize: 15 },
 });

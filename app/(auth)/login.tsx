@@ -11,12 +11,16 @@ import {
 } from 'react-native';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, Type, Space, Radius, HIT } from '../../constants/Colors';
+import { Type, Space, Radius, HIT } from '../../constants/Colors';
+import type { ColorTokens } from '../../constants/Colors';
+import { useThemedStyles, useTheme } from '../../context/theme';
 import { useAuth } from '../../context/auth';
 import { LanguageToggle, useI18n } from '../../lib/i18n';
 import { track, toErrorCode, type SignInFailReason } from '../../lib/analytics';
 
 export default function LoginScreen() {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const { signInWithGoogle, signInWithApple, signInWithEmail } = useAuth();
   const { t } = useI18n();
   const [busy, setBusy] = useState(false);
@@ -50,7 +54,7 @@ export default function LoginScreen() {
           <LanguageToggle />
           <View style={styles.header}>
             <Text style={styles.appName}>
-              swypo<Text style={{ color: Colors.purple }}>.</Text>
+              swypo<Text style={{ color: colors.purple }}>.</Text>
             </Text>
             <Text style={styles.tagline}>{t('Deutsch lernen, ganz einfach.', 'Learn German, simply.')}</Text>
           </View>
@@ -74,7 +78,7 @@ export default function LoginScreen() {
               accessibilityLabel={t('Mit Google anmelden', 'Sign in with Google')}
               activeOpacity={0.85}
             >
-              <Ionicons name="logo-google" size={18} color={Colors.bg} />
+              <Ionicons name="logo-google" size={18} color={colors.bg} />
               <Text style={styles.googleText}>{t('Mit Google anmelden', 'Sign in with Google')}</Text>
             </TouchableOpacity>
 
@@ -93,7 +97,7 @@ export default function LoginScreen() {
                 <TextInput
                   style={styles.input}
                   placeholder={t('E-Mail', 'Email')}
-                  placeholderTextColor={Colors.textMuted}
+                  placeholderTextColor={colors.textMuted}
                   autoCapitalize="none"
                   keyboardType="email-address"
                   value={email}
@@ -103,7 +107,7 @@ export default function LoginScreen() {
                 <TextInput
                   style={styles.input}
                   placeholder={t('Passwort', 'Password')}
-                  placeholderTextColor={Colors.textMuted}
+                  placeholderTextColor={colors.textMuted}
                   secureTextEntry
                   value={password}
                   onChangeText={setPassword}
@@ -139,26 +143,26 @@ export default function LoginScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: Colors.bg },
+const makeStyles = (c: ColorTokens) => StyleSheet.create({
+  safe: { flex: 1, backgroundColor: c.bg },
   scroll: { flexGrow: 1, justifyContent: 'center', padding: Space.gutter, gap: Space.xxl },
   header: { alignItems: 'center', gap: Space.sm },
-  appName: { ...Type.display, color: Colors.white, textAlign: 'center' },
-  tagline: { ...Type.body, color: Colors.textMuted, textAlign: 'center' },
+  appName: { ...Type.display, color: c.text, textAlign: 'center' },
+  tagline: { ...Type.body, color: c.textMuted, textAlign: 'center' },
   buttons: { gap: Space.md },
   appleBtn: { width: '100%', height: 50 },
   googleBtn: {
-    minHeight: HIT, borderRadius: Radius.pill, backgroundColor: Colors.white,
+    minHeight: HIT, borderRadius: Radius.pill, backgroundColor: c.inverseFill,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Space.sm,
   },
-  googleText: { ...Type.body, color: Colors.bg, fontWeight: '600' },
+  googleText: { ...Type.body, color: c.inverseText, fontWeight: '600' },
   disabled: { opacity: 0.5 },
   emailToggle: { minHeight: HIT, alignItems: 'center', justifyContent: 'center' },
-  emailToggleText: { ...Type.body, color: Colors.purple },
+  emailToggleText: { ...Type.body, color: c.purple },
   emailBox: { gap: Space.sm },
   input: {
-    minHeight: HIT, borderRadius: Radius.card, borderWidth: 1, borderColor: Colors.textMuted,
-    paddingHorizontal: Space.md, color: Colors.white, ...Type.body,
+    minHeight: HIT, borderRadius: Radius.card, borderWidth: 1, borderColor: c.textMuted,
+    paddingHorizontal: Space.md, color: c.text, ...Type.body,
   },
-  legal: { ...Type.caption, color: Colors.textMuted, textAlign: 'center' },
+  legal: { ...Type.caption, color: c.textMuted, textAlign: 'center' },
 });

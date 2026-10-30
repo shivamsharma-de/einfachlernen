@@ -2,11 +2,12 @@ import { useEffect } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { supabase } from '../../lib/supabase';
-import { Colors } from '../../constants/Colors';
+import { useTheme } from '../../context/theme';
 
 export default function AuthCallback() {
   const { code } = useLocalSearchParams<{ code?: string }>();
   const router = useRouter();
+  const { colors } = useTheme();
 
   useEffect(() => {
     if (code) {
@@ -19,8 +20,8 @@ export default function AuthCallback() {
   }, [code]);
 
   return (
-    <View style={{ flex: 1, backgroundColor: Colors.bg, alignItems: 'center', justifyContent: 'center' }}>
-      <ActivityIndicator color={Colors.gold} size="large" />
+    <View style={{ flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' }}>
+      <ActivityIndicator color={colors.gold} size="large" />
     </View>
   );
 }

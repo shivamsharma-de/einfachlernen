@@ -1,6 +1,8 @@
 import React from 'react';
 import { Text, StyleSheet, TouchableOpacity, ViewStyle } from 'react-native';
-import { Colors, Type, Radius, Space, HIT } from '../constants/Colors';
+import { Type, Radius, Space, HIT } from '../constants/Colors';
+import type { ColorTokens } from '../constants/Colors';
+import { useThemedStyles, useTheme } from '../context/theme';
 
 export type PillVariant = 'primary' | 'ghost' | 'light';
 
@@ -13,6 +15,7 @@ export function PillButton({ label, variant = 'primary', onPress, disabled, styl
   disabled?: boolean;
   style?: ViewStyle;
 }) {
+  const styles = useThemedStyles(makeStyles);
   return (
     <TouchableOpacity
       style={[styles.base, styles[variant], disabled && styles.disabled, style]}
@@ -22,12 +25,12 @@ export function PillButton({ label, variant = 'primary', onPress, disabled, styl
       accessibilityLabel={label}
       activeOpacity={0.8}
     >
-      <Text style={[styles.label, labelStyles[variant]]} numberOfLines={2}>{label}</Text>
+      <Text style={[styles.label, styles[labelKey[variant]]]} numberOfLines={2}>{label}</Text>
     </TouchableOpacity>
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: ColorTokens) => StyleSheet.create({
   base: {
     minHeight: HIT,
     borderRadius: Radius.pill,
@@ -36,15 +39,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  primary: { backgroundColor: Colors.purple },
-  light: { backgroundColor: Colors.white },
-  ghost: { backgroundColor: 'transparent', borderWidth: 1, borderColor: Colors.border },
+  primary: { backgroundColor: c.purple },
+  light: { backgroundColor: c.inverseFill },
+  ghost: { backgroundColor: 'transparent', borderWidth: 1, borderColor: c.border },
   disabled: { opacity: 0.4 },
   label: { ...Type.bodyL, textAlign: 'center' },
+  labelPrimary: { color: c.onAccent },
+  labelLight: { color: c.inverseText },
+  labelGhost: { color: c.text },
 });
 
-const labelStyles = StyleSheet.create({
-  primary: { color: Colors.black },
-  light: { color: Colors.black },
-  ghost: { color: Colors.white },
-});
+const labelKey = { primary: 'labelPrimary', light: 'labelLight', ghost: 'labelGhost' } as const;

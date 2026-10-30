@@ -1,11 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { Colors, Type, Space, Radius } from '../constants/Colors';
+import { Type, Space, Radius } from '../constants/Colors';
+import type { ColorTokens } from '../constants/Colors';
+import { useThemedStyles } from '../context/theme';
 import { estimatedProgress, stageLabel, tipAt } from '../lib/scanTips';
 
 /** Progress while a page is being read. The bar is a time-based estimate, not a measurement;
  *  it only jumps to done when the answer arrives (the screen then leaves this view). */
 export function ScanProgress() {
+  const styles = useThemedStyles(makeStyles);
   const [elapsed, setElapsed] = useState(0);
 
   useEffect(() => {
@@ -38,16 +41,16 @@ export function ScanProgress() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: ColorTokens) => StyleSheet.create({
   wrap: { width: '86%', gap: Space.sm, alignItems: 'stretch' },
-  stage: { ...Type.bodyL, color: Colors.white, textAlign: 'center' },
-  track: { height: 8, borderRadius: Radius.pill, backgroundColor: Colors.surface3, overflow: 'hidden' },
-  fill: { height: '100%', borderRadius: Radius.pill, backgroundColor: Colors.purple },
-  meta: { ...Type.meta, color: Colors.textMuted, textAlign: 'center' },
+  stage: { ...Type.bodyL, color: c.text, textAlign: 'center' },
+  track: { height: 8, borderRadius: Radius.pill, backgroundColor: c.surface3, overflow: 'hidden' },
+  fill: { height: '100%', borderRadius: Radius.pill, backgroundColor: c.purple },
+  meta: { ...Type.meta, color: c.textMuted, textAlign: 'center' },
   tipBox: {
     marginTop: Space.md, padding: Space.lg, gap: Space.xs, borderRadius: Radius.card,
-    borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.surface,
+    borderWidth: 1, borderColor: c.border, backgroundColor: c.surface,
   },
-  tipLabel: { ...Type.eyebrow, color: Colors.textMuted },
-  tip: { ...Type.body, color: Colors.white },
+  tipLabel: { ...Type.eyebrow, color: c.textMuted },
+  tip: { ...Type.body, color: c.text },
 });

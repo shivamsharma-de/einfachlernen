@@ -1,7 +1,9 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
-import { Colors, Type } from '../constants/Colors';
+import { Type } from '../constants/Colors';
+import type { ColorTokens } from '../constants/Colors';
+import { useThemedStyles, useTheme } from '../context/theme';
 
 /** Progress ring drawn with an SVG stroke arc.
  *
@@ -11,13 +13,16 @@ import { Colors, Type } from '../constants/Colors';
  *
  *  @param pct 0–1. Clamped, so a >100% day renders as a full ring.
  */
-export function ProgressRing({ pct, size = 64, color = Colors.gold, stroke = 5, label }: {
+export function ProgressRing({ pct, size = 64, color: colorProp, stroke = 5, label }: {
   pct: number;
   size?: number;
   color?: string;
   stroke?: number;
   label?: string;
 }) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
+  const color = colorProp ?? colors.gold;
   const safe = Number.isFinite(pct) ? Math.min(1, Math.max(0, pct)) : 0;
   const r = (size - stroke) / 2;
   const circumference = 2 * Math.PI * r;
@@ -28,7 +33,7 @@ export function ProgressRing({ pct, size = 64, color = Colors.gold, stroke = 5, 
       <Svg width={size} height={size}>
         <Circle
           cx={center} cy={center} r={r}
-          stroke={Colors.surface3} strokeWidth={stroke} fill="none"
+          stroke={colors.surface3} strokeWidth={stroke} fill="none"
         />
         <Circle
           cx={center} cy={center} r={r}
@@ -49,7 +54,7 @@ export function ProgressRing({ pct, size = 64, color = Colors.gold, stroke = 5, 
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: ColorTokens) => StyleSheet.create({
   labelWrap: { alignItems: 'center', justifyContent: 'center' },
-  label: { ...Type.meta, color: Colors.white },
+  label: { ...Type.meta, color: c.text },
 });

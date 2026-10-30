@@ -8,7 +8,8 @@ import { AuthProvider, useAuth } from '../context/auth';
 import { I18nProvider } from '../lib/i18n';
 import { flushReviews } from '../lib/api';
 import { track } from '../lib/analytics';
-import { Colors, Font } from '../constants/Colors';
+import { Font } from '../constants/Colors';
+import { ThemeProvider, useTheme } from '../context/theme';
 
 // Hold the native splash until the faces are ready, so the first frame is
 // already typeset rather than flashing system sans and reflowing.
@@ -36,6 +37,15 @@ function ReviewSync() {
 }
 
 export default function RootLayout() {
+  return (
+    <ThemeProvider>
+      <AppShell />
+    </ThemeProvider>
+  );
+}
+
+function AppShell() {
+  const { colors, scheme, ready: themeReady } = useTheme();
   const [fontsLoaded, fontError] = useFonts({
     [Font.serif]: require('../assets/fonts/InstrumentSerif-Regular.ttf'),
     [Font.sans]: require('../assets/fonts/IBMPlexSans-Regular.ttf'),
@@ -46,7 +56,7 @@ export default function RootLayout() {
 
   // Never strand the user on the splash: if a face fails to decode, fall through
   // to system fonts rather than blocking forever.
-  const ready = fontsLoaded || fontError !== null;
+  const ready = (fontsLoaded || fontError !== null) && themeReady;
 
   // One event at launch, and one each time the app comes back from the background.
   // session_ended goes out each time the app leaves the foreground, with how long it was open.
@@ -72,14 +82,14 @@ export default function RootLayout() {
     if (ready) void SplashScreen.hideAsync();
   }, [ready]);
 
-  if (!ready) return <View style={{ flex: 1, backgroundColor: Colors.bg }} />;
+  if (!ready) return <View style={{ flex: 1, backgroundColor: colors.bg }} />;
 
   return (
     <AuthProvider>
     <I18nProvider>
       <ReviewSync />
-      <StatusBar style="light" />
-      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: Colors.bg }, animation: 'slide_from_right' }} />
+      <StatusBar style={scheme === 'light' ? 'dark' : 'light'} />
+      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg }, animation: 'slide_from_right' }} />
     </I18nProvider>
     </AuthProvider>
   );

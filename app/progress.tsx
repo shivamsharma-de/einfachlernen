@@ -6,7 +6,9 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Colors, Type, Space, Radius, HIT } from '../constants/Colors';
+import { Type, Space, Radius, HIT } from '../constants/Colors';
+import type { ColorTokens } from '../constants/Colors';
+import { useThemedStyles, useTheme } from '../context/theme';
 import { useAuth } from '../context/auth';
 import { levelsOf } from '../lib/profile';
 import { useI18n } from '../lib/i18n';
@@ -19,6 +21,8 @@ import type { CEFRLevel } from '../types/index';
 const pct = (part: number, whole: number) => (`${whole > 0 ? Math.min(100, (part / whole) * 100) : 0}%` as const);
 
 export default function ProgressScreen() {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const { user, profile } = useAuth();
   const { t, lang } = useI18n();
   const router = useRouter();
@@ -83,7 +87,7 @@ export default function ProgressScreen() {
       </View>
 
       {loading ? (
-        <ActivityIndicator color={Colors.textMuted} style={styles.loader} />
+        <ActivityIndicator color={colors.textMuted} style={styles.loader} />
       ) : (
         <ScrollView contentContainerStyle={styles.content}>
           {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -91,15 +95,15 @@ export default function ProgressScreen() {
           {/* Today */}
           <Text style={styles.eyebrow}>{t('HEUTE', 'TODAY')}</Text>
           <View style={styles.row}>
-            <Stat value={`${minutes}/${DAILY_MINUTES_GOAL}`} label={t('Minuten', 'minutes')} color={Colors.purple} />
-            <Stat value={String(today?.cards_reviewed ?? 0)} label={t('Karten', 'cards')} color={Colors.white} />
-            <Stat value={String(today?.xp_earned ?? 0)} label="XP" color={Colors.gold} />
+            <Stat value={`${minutes}/${DAILY_MINUTES_GOAL}`} label={t('Minuten', 'minutes')} color={colors.purple} />
+            <Stat value={String(today?.cards_reviewed ?? 0)} label={t('Karten', 'cards')} color={colors.text} />
+            <Stat value={String(today?.xp_earned ?? 0)} label="XP" color={colors.gold} />
           </View>
 
           {/* Account totals */}
           <View style={styles.row}>
-            <Stat value={String(streak)} label={t('Tage Serie', 'day streak')} color={Colors.gold} />
-            <Stat value={String(profile?.xp ?? 0)} label={t('XP gesamt', 'XP total')} color={Colors.gold} />
+            <Stat value={String(streak)} label={t('Tage Serie', 'day streak')} color={colors.gold} />
+            <Stat value={String(profile?.xp ?? 0)} label={t('XP gesamt', 'XP total')} color={colors.gold} />
           </View>
 
           {/* Last seven days */}
@@ -146,10 +150,10 @@ export default function ProgressScreen() {
           <View style={styles.card}>
             {lights ? (
               <>
-                <LightLine color={Colors.green} n={lights.green} label={t('sicher (zweimal richtig)', 'secure (two in a row)')} />
-                <LightLine color={Colors.gold} n={lights.yellow} label={t('einmal richtig', 'correct once')} />
-                <LightLine color={Colors.red} n={lights.red} label={t('zuletzt falsch', 'recently wrong')} />
-                <LightLine color={Colors.textMuted} n={lights.grey} label={t('noch nie getestet', 'never tested')} />
+                <LightLine color={colors.green} n={lights.green} label={t('sicher (zweimal richtig)', 'secure (two in a row)')} />
+                <LightLine color={colors.gold} n={lights.yellow} label={t('einmal richtig', 'correct once')} />
+                <LightLine color={colors.red} n={lights.red} label={t('zuletzt falsch', 'recently wrong')} />
+                <LightLine color={colors.textMuted} n={lights.grey} label={t('noch nie getestet', 'never tested')} />
               </>
             ) : (
               <Text style={styles.muted}>{t('Noch keine Tests.', 'No tests yet.')}</Text>
@@ -162,6 +166,7 @@ export default function ProgressScreen() {
 }
 
 function Stat({ value, label, color }: { value: string; label: string; color: string }) {
+  const styles = useThemedStyles(makeStyles);
   return (
     <View style={styles.stat}>
       <Text style={[styles.statValue, { color }]}>{value}</Text>
@@ -171,6 +176,7 @@ function Stat({ value, label, color }: { value: string; label: string; color: st
 }
 
 function LightLine({ color, n, label }: { color: string; n: number; label: string }) {
+  const styles = useThemedStyles(makeStyles);
   return (
     <View style={styles.lightLine}>
       <View style={[styles.dot, { backgroundColor: color }]} />
@@ -180,38 +186,38 @@ function LightLine({ color, n, label }: { color: string; n: number; label: strin
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: Colors.bg },
+const makeStyles = (c: ColorTokens) => StyleSheet.create({
+  safe: { flex: 1, backgroundColor: c.bg },
   header: { flexDirection: 'row', alignItems: 'center', gap: Space.sm, paddingHorizontal: Space.lg, paddingVertical: Space.md },
   back: { minWidth: HIT, minHeight: HIT, alignItems: 'center', justifyContent: 'center' },
-  backText: { ...Type.title, color: Colors.white },
-  title: { ...Type.title, color: Colors.white },
+  backText: { ...Type.title, color: c.text },
+  title: { ...Type.title, color: c.text },
   loader: { marginTop: Space.xl },
   content: { paddingHorizontal: Space.lg, paddingBottom: Space.xl, gap: Space.md },
-  error: { ...Type.caption, color: Colors.red },
-  eyebrow: { ...Type.eyebrow, color: Colors.textMuted, marginTop: Space.sm },
+  error: { ...Type.caption, color: c.red },
+  eyebrow: { ...Type.eyebrow, color: c.textMuted, marginTop: Space.sm },
   row: { flexDirection: 'row', gap: Space.sm },
   stat: {
     flex: 1, padding: Space.md, borderRadius: Radius.card, borderWidth: 1,
-    borderColor: Colors.border, backgroundColor: Colors.surface, gap: 2,
+    borderColor: c.border, backgroundColor: c.surface, gap: 2,
   },
   statValue: { ...Type.title, fontSize: 22 },
-  statLabel: { ...Type.caption, color: Colors.textMuted },
+  statLabel: { ...Type.caption, color: c.textMuted },
   card: {
     padding: Space.lg, borderRadius: Radius.card, borderWidth: 1,
-    borderColor: Colors.border, backgroundColor: Colors.surface, gap: Space.md,
+    borderColor: c.border, backgroundColor: c.surface, gap: Space.md,
   },
-  muted: { ...Type.caption, color: Colors.textMuted },
+  muted: { ...Type.caption, color: c.textMuted },
   weekRow: { flexDirection: 'row', alignItems: 'center', gap: Space.sm },
-  weekDay: { ...Type.caption, color: Colors.textMuted, width: 40 },
-  weekCount: { ...Type.caption, color: Colors.white, width: 32, textAlign: 'right' },
-  barTrack: { flex: 1, height: 8, borderRadius: Radius.pill, backgroundColor: Colors.surface3, overflow: 'hidden' },
-  barFill: { height: '100%', borderRadius: Radius.pill, backgroundColor: Colors.purple },
+  weekDay: { ...Type.caption, color: c.textMuted, width: 40 },
+  weekCount: { ...Type.caption, color: c.text, width: 32, textAlign: 'right' },
+  barTrack: { flex: 1, height: 8, borderRadius: Radius.pill, backgroundColor: c.surface3, overflow: 'hidden' },
+  barFill: { height: '100%', borderRadius: Radius.pill, backgroundColor: c.purple },
   levelBlock: { gap: Space.xs },
   levelTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
-  levelName: { ...Type.bodyL, color: Colors.white },
+  levelName: { ...Type.bodyL, color: c.text },
   lightLine: { flexDirection: 'row', alignItems: 'center', gap: Space.sm, minHeight: HIT },
   dot: { width: 12, height: 12, borderRadius: 6 },
-  lightLabel: { ...Type.bodyL, color: Colors.white, flex: 1 },
-  lightCount: { ...Type.bodyL, color: Colors.white },
+  lightLabel: { ...Type.bodyL, color: c.text, flex: 1 },
+  lightCount: { ...Type.bodyL, color: c.text },
 });

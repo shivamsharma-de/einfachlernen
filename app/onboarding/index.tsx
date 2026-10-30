@@ -25,7 +25,9 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, HIT, Radius, Space, Type } from '../../constants/Colors';
+import { HIT, Radius, Space, Type } from '../../constants/Colors';
+import type { ColorTokens } from '../../constants/Colors';
+import { useThemedStyles, useTheme } from '../../context/theme';
 import { Eyebrow, LevelBadge, PillButton, SessionTrackingPrompt } from '../../components';
 import { useAuth } from '../../context/auth';
 import { CEFR_LEVELS, isMostlyEstimated, useLevelCounts, type LevelCount } from '../../hooks/useLevelCounts';
@@ -46,6 +48,8 @@ const LEVEL_COPY: Record<CEFRLevel, { de: string; en: string }> = {
 };
 
 export default function LevelSelectionScreen() {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const { user, profile, refreshProfile } = useAuth();
   const { lang, t } = useI18n();
   const router = useRouter();
@@ -116,7 +120,7 @@ export default function LevelSelectionScreen() {
             accessibilityRole="button"
             accessibilityLabel="Zurück"
           >
-            <Ionicons name="chevron-back" size={18} color={Colors.textMuted} />
+            <Ionicons name="chevron-back" size={18} color={colors.textMuted} />
             <Text style={styles.backLabel}>{t('Zurück', 'Back')}</Text>
           </TouchableOpacity>
         ) : (
@@ -194,6 +198,8 @@ function LevelOption({ level, selected, count, countsLoading, onPress }: {
   countsLoading: boolean;
   onPress: () => void;
 }) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const { lang, t } = useI18n();
   const copy = LEVEL_COPY[level];
   const estimated = isMostlyEstimated(count);
@@ -229,7 +235,7 @@ function LevelOption({ level, selected, count, countsLoading, onPress }: {
           <Text style={styles.count}>—</Text>
         )}
         <View style={styles.optionSpacer} />
-        {selected && <Ionicons name="checkmark-circle" size={22} color={Colors.purple} />}
+        {selected && <Ionicons name="checkmark-circle" size={22} color={colors.purple} />}
       </View>
 
       {/* Wraps rather than truncates — German descriptions are long (§8). */}
@@ -245,58 +251,58 @@ function LevelOption({ level, selected, count, countsLoading, onPress }: {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: Colors.bg },
+const makeStyles = (c: ColorTokens) => StyleSheet.create({
+  safe: { flex: 1, backgroundColor: c.bg },
   scroll: { padding: Space.gutter, paddingTop: Space.xxl, paddingBottom: 40, gap: Space.sm },
 
   back: {
     flexDirection: 'row', alignItems: 'center', gap: 2,
     minHeight: HIT, alignSelf: 'flex-start', paddingRight: Space.md,
   },
-  backLabel: { ...Type.eyebrow, color: Colors.textMuted },
+  backLabel: { ...Type.eyebrow, color: c.textMuted },
 
-  title: { ...Type.title, color: Colors.white },
-  subtitle: { ...Type.body, color: Colors.white, marginTop: Space.xs },
-  subtitleEn: { ...Type.caption, color: Colors.textMuted },
-  countsError: { ...Type.caption, color: Colors.textMuted, marginTop: Space.sm },
+  title: { ...Type.title, color: c.text },
+  subtitle: { ...Type.body, color: c.text, marginTop: Space.xs },
+  subtitleEn: { ...Type.caption, color: c.textMuted },
+  countsError: { ...Type.caption, color: c.textMuted, marginTop: Space.sm },
 
   list: { gap: Space.md, marginTop: Space.xl },
   option: {
     minHeight: HIT,
-    backgroundColor: Colors.surface,
+    backgroundColor: c.surface,
     borderRadius: Radius.card,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: c.border,
     padding: Space.lg,
     gap: 3,
   },
-  optionSelected: { borderColor: Colors.purple, backgroundColor: Colors.purpleBg },
+  optionSelected: { borderColor: c.purple, backgroundColor: c.purpleBg },
   optionHead: { flexDirection: 'row', alignItems: 'center', gap: Space.sm, marginBottom: Space.xs },
   optionSpacer: { flex: 1 },
-  count: { ...Type.meta, color: Colors.textMuted },
-  countSkeleton: { width: 74, height: 11, borderRadius: 4, backgroundColor: Colors.surface3 },
-  optionDe: { ...Type.bodyL, color: Colors.white },
-  optionEn: { ...Type.caption, color: Colors.textMuted },
-  estimatedNote: { ...Type.eyebrow, color: Colors.textMuted, marginTop: Space.sm },
-  footnote: { ...Type.caption, color: Colors.textMuted, marginTop: Space.md },
+  count: { ...Type.meta, color: c.textMuted },
+  countSkeleton: { width: 74, height: 11, borderRadius: 4, backgroundColor: c.surface3 },
+  optionDe: { ...Type.bodyL, color: c.text },
+  optionEn: { ...Type.caption, color: c.textMuted },
+  estimatedNote: { ...Type.eyebrow, color: c.textMuted, marginTop: Space.sm },
+  footnote: { ...Type.caption, color: c.textMuted, marginTop: Space.md },
 
   saveError: {
     marginTop: Space.lg,
-    backgroundColor: Colors.redBg,
+    backgroundColor: c.redBg,
     borderRadius: Radius.tile,
     padding: Space.md,
     gap: 2,
   },
-  saveErrorTitle: { ...Type.bodyL, fontSize: 13.5, color: Colors.red },
-  saveErrorBody: { ...Type.caption, color: Colors.textMuted },
+  saveErrorTitle: { ...Type.bodyL, fontSize: 13.5, color: c.red },
+  saveErrorBody: { ...Type.caption, color: c.textMuted },
 
   cta: { marginTop: Space.xl },
-  modalBackdrop: { flex: 1, backgroundColor: Colors.black, alignItems: 'center', justifyContent: 'center', padding: Space.gutter },
+  modalBackdrop: { flex: 1, backgroundColor: c.backdrop, alignItems: 'center', justifyContent: 'center', padding: Space.gutter },
   modalCard: {
     width: '100%', gap: Space.md, padding: Space.xl, borderRadius: Radius.card,
-    borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.surface,
+    borderWidth: 1, borderColor: c.border, backgroundColor: c.surface,
   },
-  modalTitle: { ...Type.title, color: Colors.white },
-  modalBody: { ...Type.body, color: Colors.textMuted },
-  signedOut: { ...Type.caption, color: Colors.textMuted, textAlign: 'center', marginTop: Space.sm },
+  modalTitle: { ...Type.title, color: c.text },
+  modalBody: { ...Type.body, color: c.textMuted },
+  signedOut: { ...Type.caption, color: c.textMuted, textAlign: 'center', marginTop: Space.sm },
 });

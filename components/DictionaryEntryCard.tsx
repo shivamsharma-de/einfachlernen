@@ -1,6 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { Colors, Type, Space, Radius, ARTICLE_COLOR } from '../constants/Colors';
+import { Type, Space, Radius, articleColor } from '../constants/Colors';
+import type { ColorTokens } from '../constants/Colors';
+import { useThemedStyles, useTheme } from '../context/theme';
 import { LevelBadge } from './LevelBadge';
 import type { CEFRLevel } from '../types/index';
 
@@ -31,7 +33,9 @@ const TYPE_LABEL: Record<string, string> = {
 };
 
 export function EntryCard(props: EntryFields & { badge?: string; footer?: React.ReactNode }) {
-  const articleColor = props.article ? ARTICLE_COLOR[props.article as keyof typeof ARTICLE_COLOR] : undefined;
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
+  const articleTint = props.article ? articleColor(colors)[props.article as keyof ReturnType<typeof articleColor>] : undefined;
   return (
     <View style={styles.card}>
       <View style={styles.top}>
@@ -42,7 +46,7 @@ export function EntryCard(props: EntryFields & { badge?: string; footer?: React.
         </View>
       </View>
       <View style={styles.headRow}>
-        {props.article ? <Text style={[styles.article, { color: articleColor }]}>{props.article}</Text> : null}
+        {props.article ? <Text style={[styles.article, { color: articleTint }]}>{props.article}</Text> : null}
         <Text style={styles.german}>{props.german}</Text>
       </View>
       <Text style={styles.english}>{props.english}</Text>
@@ -59,25 +63,25 @@ export function EntryCard(props: EntryFields & { badge?: string; footer?: React.
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: ColorTokens) => StyleSheet.create({
   card: {
     padding: Space.lg, gap: Space.xs, borderRadius: Radius.card, borderWidth: 1,
-    borderColor: Colors.border, backgroundColor: Colors.surface,
+    borderColor: c.border, backgroundColor: c.surface,
   },
   top: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   badges: { flexDirection: 'row', alignItems: 'center', gap: Space.sm },
-  badge: { ...Type.meta, color: Colors.purple },
-  eyebrow: { ...Type.eyebrow, color: Colors.textMuted },
+  badge: { ...Type.meta, color: c.purple },
+  eyebrow: { ...Type.eyebrow, color: c.textMuted },
   headRow: { flexDirection: 'row', alignItems: 'baseline', flexWrap: 'wrap', gap: Space.sm, marginTop: Space.xs },
   article: { ...Type.word, fontWeight: '600' },
-  german: { ...Type.word, color: Colors.white },
-  english: { ...Type.bodyL, color: Colors.white },
-  example: { ...Type.body, color: Colors.white, marginTop: Space.xs },
-  exampleEn: { ...Type.caption, color: Colors.textMuted },
+  german: { ...Type.word, color: c.text },
+  english: { ...Type.bodyL, color: c.text },
+  example: { ...Type.body, color: c.text, marginTop: Space.xs },
+  exampleEn: { ...Type.caption, color: c.textMuted },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: Space.xs, alignItems: 'center', marginTop: Space.xs },
-  synLabel: { ...Type.meta, color: Colors.textMuted, marginRight: Space.xs },
+  synLabel: { ...Type.meta, color: c.textMuted, marginRight: Space.xs },
   chip: {
-    ...Type.meta, color: Colors.textMuted, paddingHorizontal: Space.sm, paddingVertical: 2,
-    borderRadius: Radius.pill, borderWidth: 1, borderColor: Colors.border,
+    ...Type.meta, color: c.textMuted, paddingHorizontal: Space.sm, paddingVertical: 2,
+    borderRadius: Radius.pill, borderWidth: 1, borderColor: c.border,
   },
 });

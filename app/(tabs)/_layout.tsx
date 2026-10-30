@@ -1,7 +1,9 @@
 import { Redirect, Tabs } from 'expo-router';
 import { useAuth } from '../../context/auth';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, Type } from '../../constants/Colors';
+import { Type } from '../../constants/Colors';
+import type { ColorTokens } from '../../constants/Colors';
+import { useThemedStyles, useTheme } from '../../context/theme';
 import { View, StyleSheet, Platform, type ColorValue } from 'react-native';
 import { OnboardingTour, SessionTrackingPrompt } from '../../components';
 import { completeTour, saveSessionTracking } from '../../lib/profile';
@@ -9,6 +11,7 @@ import { completeTour, saveSessionTracking } from '../../lib/profile';
 type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
 
 function TabIcon({ name, color, focused }: { name: IoniconsName; color: ColorValue; focused: boolean }) {
+  const styles = useThemedStyles(makeStyles);
   return (
     <View style={[styles.iconWrap, focused && styles.iconWrapActive]}>
       {/* Tab colours are always hex strings; RN 0.88 widened ColorValue (null, number). */}
@@ -21,6 +24,8 @@ function TabIcon({ name, color, focused }: { name: IoniconsName; color: ColorVal
  *  Phrases becomes "Wörter"; the quiz and the leaderboard stay as routes but
  *  leave the bar: quiz is entered from Home, ranks from Profil. */
 export default function TabLayout() {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const { loading, user, profile, refreshProfile } = useAuth();
 
   // First run after onboarding: the six-step tour, then the session tracking question (once each).
@@ -47,8 +52,8 @@ export default function TabLayout() {
       screenOptions={{
         headerShown: false,
         tabBarStyle: styles.tabBar,
-        tabBarActiveTintColor: Colors.purple,
-        tabBarInactiveTintColor: Colors.textMuted,
+        tabBarActiveTintColor: colors.purple,
+        tabBarInactiveTintColor: colors.textMuted,
         tabBarLabelStyle: styles.tabLabel,
         tabBarShowLabel: true,
       }}
@@ -109,10 +114,10 @@ export default function TabLayout() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: ColorTokens) => StyleSheet.create({
   tabBar: {
-    backgroundColor: Colors.surface,
-    borderTopColor: Colors.border,
+    backgroundColor: c.surface,
+    borderTopColor: c.border,
     borderTopWidth: 1,
     height: Platform.OS === 'ios' ? 82 : 64,
     paddingBottom: Platform.OS === 'ios' ? 24 : 8,
@@ -127,6 +132,6 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   iconWrapActive: {
-    backgroundColor: Colors.purpleBg,
+    backgroundColor: c.purpleBg,
   },
 });

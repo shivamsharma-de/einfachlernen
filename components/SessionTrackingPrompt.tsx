@@ -1,11 +1,14 @@
 import React from 'react';
 import { View, Text, Modal, StyleSheet } from 'react-native';
-import { Colors, Type, Space, Radius } from '../constants/Colors';
+import { Type, Space, Radius } from '../constants/Colors';
+import type { ColorTokens } from '../constants/Colors';
+import { useThemedStyles } from '../context/theme';
 import { PillButton } from './PillButton';
 import { useI18n } from '../lib/i18n';
 
 /** Asked once per account. The answer turns session tracking on or off and is saved on the profile. */
 export function SessionTrackingPrompt(props: { visible: boolean; onChoose: (granted: boolean) => void }) {
+  const styles = useThemedStyles(makeStyles);
   const { t } = useI18n();
   return (
     <Modal visible={props.visible} transparent animationType="fade">
@@ -26,12 +29,12 @@ export function SessionTrackingPrompt(props: { visible: boolean; onChoose: (gran
   );
 }
 
-const styles = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: Colors.black, alignItems: 'center', justifyContent: 'center', padding: Space.gutter },
+const makeStyles = (c: ColorTokens) => StyleSheet.create({
+  backdrop: { flex: 1, backgroundColor: c.backdrop, alignItems: 'center', justifyContent: 'center', padding: Space.gutter },
   card: {
     width: '100%', gap: Space.md, padding: Space.xl, borderRadius: Radius.card,
-    borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.surface,
+    borderWidth: 1, borderColor: c.border, backgroundColor: c.surface,
   },
-  title: { ...Type.title, color: Colors.white },
-  body: { ...Type.body, color: Colors.textMuted },
+  title: { ...Type.title, color: c.text },
+  body: { ...Type.body, color: c.textMuted },
 });

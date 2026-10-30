@@ -1,6 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
-import { Colors, Type, Radius, Space, ARTICLE_COLOR } from '../constants/Colors';
+import { Type, Radius, Space, articleColor } from '../constants/Colors';
+import type { ColorTokens } from '../constants/Colors';
+import { useThemedStyles, useTheme } from '../context/theme';
 import { WordEnrichment } from '../lib/ai';
 import { Word } from '../types';
 
@@ -18,6 +20,8 @@ export function WordCard({ word, revealed, onFlip, enrichment, enriching }: {
   enrichment?: WordEnrichment | null;
   enriching?: boolean;
 }) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const article = word.article;
 
   // Prefer AI grammar, fall back to the seeded `forms` blob.
@@ -38,7 +42,7 @@ export function WordCard({ word, revealed, onFlip, enrichment, enriching }: {
     >
       <View style={styles.front}>
         {article && (
-          <Text style={[styles.article, { color: ARTICLE_COLOR[article] }]}>{article}</Text>
+          <Text style={[styles.article, { color: articleColor(colors)[article] }]}>{article}</Text>
         )}
         <Text style={styles.german}>{word.german}</Text>
       </View>
@@ -60,7 +64,7 @@ export function WordCard({ word, revealed, onFlip, enrichment, enriching }: {
           )}
 
           {enriching && !enrichment && (
-            <ActivityIndicator size="small" color={Colors.textDim} />
+            <ActivityIndicator size="small" color={colors.textDim} />
           )}
         </View>
       )}
@@ -72,32 +76,32 @@ export function WordCard({ word, revealed, onFlip, enrichment, enriching }: {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: ColorTokens) => StyleSheet.create({
   card: {
     minHeight: 264,
-    backgroundColor: Colors.surface,
+    backgroundColor: c.surface,
     borderRadius: Radius.card,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Colors.border,
+    borderColor: c.border,
     padding: 18,
     justifyContent: 'center',
     gap: Space.lg,
   },
   front: { alignItems: 'center', gap: Space.xs },
   article: { ...Type.meta },
-  german: { ...Type.headword, color: Colors.white, textAlign: 'center' },
+  german: { ...Type.headword, color: c.text, textAlign: 'center' },
   back: {
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: Colors.border,
+    borderTopColor: c.border,
     paddingTop: Space.lg,
     gap: Space.sm,
     alignItems: 'center',
   },
-  english: { ...Type.body, fontSize: 19, lineHeight: 24, color: Colors.white, textAlign: 'center' },
-  grammar: { ...Type.meta, color: Colors.textMuted, textAlign: 'center' },
-  description: { ...Type.caption, color: Colors.textMuted, textAlign: 'center' },
+  english: { ...Type.body, fontSize: 19, lineHeight: 24, color: c.text, textAlign: 'center' },
+  grammar: { ...Type.meta, color: c.textMuted, textAlign: 'center' },
+  description: { ...Type.caption, color: c.textMuted, textAlign: 'center' },
   example: { gap: 2, marginTop: Space.sm },
-  exampleDe: { ...Type.body, color: Colors.white, textAlign: 'center' },
-  exampleEn: { ...Type.caption, color: Colors.textMuted, textAlign: 'center' },
-  hint: { ...Type.eyebrow, color: Colors.textMuted, textAlign: 'center' },
+  exampleDe: { ...Type.body, color: c.text, textAlign: 'center' },
+  exampleEn: { ...Type.caption, color: c.textMuted, textAlign: 'center' },
+  hint: { ...Type.eyebrow, color: c.textMuted, textAlign: 'center' },
 });

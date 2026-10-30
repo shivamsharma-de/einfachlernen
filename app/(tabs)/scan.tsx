@@ -10,7 +10,9 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import { Colors, Type, Space, Radius, HIT, ARTICLE_COLOR } from '../../constants/Colors';
+import { Type, Space, Radius, HIT, articleColor } from '../../constants/Colors';
+import type { ColorTokens } from '../../constants/Colors';
+import { useThemedStyles, useTheme } from '../../context/theme';
 import { Eyebrow, LevelBadge, PillButton, ScanProgress } from '../../components';
 import { useAuth } from '../../context/auth';
 import { levelsOf } from '../../lib/profile';
@@ -39,6 +41,8 @@ const candidateKey = (c: Candidate) => `c:${c.german.toLowerCase()}`;
 const catalogueKey = (w: CatalogueHit) => `m:${w.id}`;
 
 export default function ScanScreen() {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const { user, profile, refreshProfile } = useAuth();
   const router = useRouter();
   // The scan keeps words above the learner's lowest selected level.
@@ -186,7 +190,7 @@ export default function ScanScreen() {
   if (!permission) {
     return (
       <SafeAreaView style={styles.safe}>
-        <View style={styles.center}><ActivityIndicator color={Colors.textMuted} /></View>
+        <View style={styles.center}><ActivityIndicator color={colors.textMuted} /></View>
       </SafeAreaView>
     );
   }
@@ -214,7 +218,7 @@ export default function ScanScreen() {
           </Text>
           {error ? <Text style={styles.error}>{error}</Text> : null}
           {consentBusy
-            ? <ActivityIndicator color={Colors.textMuted} />
+            ? <ActivityIndicator color={colors.textMuted} />
             : <PillButton label="Zustimmen und scannen" onPress={() => { void grant(); }} />}
         </View>
       </SafeAreaView>
@@ -346,6 +350,8 @@ function WordCardRow(props: {
   on: boolean; onPress: () => void; article: string | null; german: string; english: string;
   level: CEFRLevel; example: string; exampleEn: string; synonyms: string[]; badge?: string;
 }) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   return (
     <TouchableOpacity
       onPress={props.onPress}
@@ -360,7 +366,7 @@ function WordCardRow(props: {
       </View>
       <View style={styles.rowBody}>
         <View style={styles.rowTop}>
-          {props.article ? <Text style={[styles.article, { color: ARTICLE_COLOR[props.article as keyof typeof ARTICLE_COLOR] }]}>{props.article}</Text> : null}
+          {props.article ? <Text style={[styles.article, { color: articleColor(colors)[props.article as keyof typeof articleColor] }]}>{props.article}</Text> : null}
           <Text style={styles.german}>{props.german}</Text>
           <LevelBadge level={props.level} />
           {props.badge ? <Text style={styles.badge}>{props.badge}</Text> : null}
@@ -378,42 +384,42 @@ function WordCardRow(props: {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: Colors.bg },
+const makeStyles = (c: ColorTokens) => StyleSheet.create({
+  safe: { flex: 1, backgroundColor: c.bg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: Space.gutter, gap: Space.md },
-  emptyTitle: { ...Type.title, color: Colors.white, textAlign: 'center' },
-  emptyBody: { ...Type.body, color: Colors.textMuted, textAlign: 'center' },
-  error: { ...Type.caption, color: Colors.red, textAlign: 'center' },
-  hint: { ...Type.caption, color: Colors.textMuted, textAlign: 'center' },
-  totals: { ...Type.meta, color: Colors.white, textAlign: 'center' },
-  cameraWrap: { flex: 1, overflow: 'hidden', borderRadius: Radius.card, margin: Space.gutter, backgroundColor: Colors.surface },
-  busy: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center', gap: Space.sm, backgroundColor: Colors.bg },
+  emptyTitle: { ...Type.title, color: c.text, textAlign: 'center' },
+  emptyBody: { ...Type.body, color: c.textMuted, textAlign: 'center' },
+  error: { ...Type.caption, color: c.red, textAlign: 'center' },
+  hint: { ...Type.caption, color: c.textMuted, textAlign: 'center' },
+  totals: { ...Type.meta, color: c.text, textAlign: 'center' },
+  cameraWrap: { flex: 1, overflow: 'hidden', borderRadius: Radius.card, margin: Space.gutter, backgroundColor: c.surface },
+  busy: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center', gap: Space.sm, backgroundColor: c.bg },
   controls: { padding: Space.gutter, gap: Space.md },
   review: { padding: Space.gutter, gap: Space.md, paddingBottom: 40 },
-  title: { ...Type.title, color: Colors.white },
-  status: { ...Type.caption, color: Colors.textMuted },
+  title: { ...Type.title, color: c.text },
+  status: { ...Type.caption, color: c.textMuted },
   row: {
     flexDirection: 'row', gap: Space.md, padding: Space.md, minHeight: HIT,
-    borderRadius: Radius.card, borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.surface,
+    borderRadius: Radius.card, borderWidth: 1, borderColor: c.border, backgroundColor: c.surface,
   },
-  rowOn: { borderColor: Colors.purple },
+  rowOn: { borderColor: c.purple },
   box: {
-    width: 22, height: 22, borderRadius: 6, borderWidth: 1.5, borderColor: Colors.textMuted,
+    width: 22, height: 22, borderRadius: 6, borderWidth: 1.5, borderColor: c.textMuted,
     alignItems: 'center', justifyContent: 'center', marginTop: 2,
   },
-  boxOn: { backgroundColor: Colors.purple, borderColor: Colors.purple },
-  tick: { color: Colors.black, fontWeight: '700' },
+  boxOn: { backgroundColor: c.purple, borderColor: c.purple },
+  tick: { color: c.onAccent, fontWeight: '700' },
   rowBody: { flex: 1, gap: 4 },
   rowTop: { flexDirection: 'row', alignItems: 'baseline', flexWrap: 'wrap', gap: Space.sm },
   article: { ...Type.word, fontWeight: '600' },
-  german: { ...Type.word, color: Colors.white },
-  badge: { ...Type.meta, color: Colors.purple },
-  english: { ...Type.bodyL, color: Colors.white },
-  example: { ...Type.body, color: Colors.white },
-  exampleEn: { ...Type.caption, color: Colors.textMuted },
+  german: { ...Type.word, color: c.text },
+  badge: { ...Type.meta, color: c.purple },
+  english: { ...Type.bodyL, color: c.text },
+  example: { ...Type.body, color: c.text },
+  exampleEn: { ...Type.caption, color: c.textMuted },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: Space.xs },
   chip: {
-    ...Type.meta, color: Colors.textMuted, paddingHorizontal: Space.sm, paddingVertical: 2,
-    borderRadius: Radius.pill, borderWidth: 1, borderColor: Colors.border,
+    ...Type.meta, color: c.textMuted, paddingHorizontal: Space.sm, paddingVertical: 2,
+    borderRadius: Radius.pill, borderWidth: 1, borderColor: c.border,
   },
 });
