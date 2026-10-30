@@ -69,8 +69,8 @@ export default function TestScreen() {
     return () => { cancelled = true; };
   }, [levelKey]);
 
-  const start = useCallback(async (count: number) => {
-    setSize(count);
+  const start = useCallback(async (requested: number) => {
+    setSize(requested);
     setError(null);
     setTest(null);
     setIndex(0);
@@ -80,6 +80,18 @@ export default function TestScreen() {
     setResult(null);
     setLights(null);
     const loadElapsed = timer();
+    // "All" means every studied word. Ask for exactly that many: the server only tops a round up
+    // from the wider catalogue when the count is larger than the studied words (migration 021),
+    // and asking for 1000 made it build questions for the whole catalogue, which never came back.
+    let count = requested;
+    if (requested === ALL) {
+      const lights = await fetchLights(levels);
+      if (!lights.ok) {
+        setError(lights.error);
+        return;
+      }
+      count = lights.data.studied;
+    }
     const res = await startTest(levels, count);
     if (!res.ok) setError(res.error);
     else {
