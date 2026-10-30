@@ -150,8 +150,9 @@ export default function HomeScreen() {
             <View style={styles.greetingText}>
               <Text style={styles.date}>{formatDate(now)}</Text>
               <Text style={styles.hello}>
-                {hello.de}<Text style={styles.period}>.</Text>
+                Swypo<Text style={styles.period}>.</Text>
               </Text>
+              <Text style={styles.helloDe}>{hello.de}</Text>
               <Text style={styles.helloEn}>{hello.en}</Text>
             </View>
             <View style={styles.levelCircle}>
@@ -182,7 +183,7 @@ export default function HomeScreen() {
             </View>
             <View style={styles.statRow}>
               <StatPair value={streak} label="Tage Serie" color={colors.gold} />
-              <StatPair value={profile?.xp ?? 0} label={`XP · Stufe ${stufe(profile?.xp ?? 0)}`} />
+              <StatPair value={profile?.xp ?? 0} label={`Punkte · Stufe ${stufe(profile?.xp ?? 0)}`} />
             </View>
           </View>
         </View>
@@ -323,6 +324,7 @@ const makeStyles = (c: ColorTokens) => StyleSheet.create({
   date: { ...Type.eyebrow, color: c.textMuted },
   hello: { ...Type.title, color: c.text },
   period: { color: c.purple },
+  helloDe: { ...Type.bodyL, color: c.text },
   helloEn: { ...Type.caption, color: c.textMuted },
   levelCircle: {
     width: 50, height: 50, borderRadius: 25,
