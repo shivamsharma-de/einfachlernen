@@ -25,8 +25,16 @@ describe('decidePage', () => {
   });
 
   it('blocks images without enough text', () => {
-    expect(decidePage({ ...page, textCoverage: 0.05 })).toEqual({ allow: false, reason: 'no_text' });
+    expect(decidePage({ ...page, textCoverage: 0.02, wordCount: 120 })).toEqual({ allow: false, reason: 'no_text' });
     expect(decidePage({ ...page, wordCount: 4 })).toEqual({ allow: false, reason: 'no_text' });
+  });
+
+  it('allows a sparse vocabulary table with many words', () => {
+    expect(decidePage({ ...page, textCoverage: 0.1, wordCount: 46 })).toEqual({ allow: true });
+  });
+
+  it('still blocks sparse text with few words', () => {
+    expect(decidePage({ ...page, textCoverage: 0.1, wordCount: 20 })).toEqual({ allow: false, reason: 'no_text' });
   });
 
   it('checks explicit content before people and text', () => {

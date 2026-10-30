@@ -243,9 +243,18 @@ export function reset(): void {
 /** Starts or stops session replay for this learner. Replay runs only while the learner has agreed. */
 export function setReplayConsent(granted: boolean): void {
   if (!client) return;
-  safely(() => {
-    void (granted ? client.startSessionRecording() : client.stopSessionRecording());
-  });
+  const c = client;
+  // Development only: report whether the recorder is really active, to tell a device problem apart
+  // from a project setting. Never logs session contents.
+  void (async () => {
+    try {
+      if (granted) await c.startSessionRecording();
+      else await c.stopSessionRecording();
+      if (__DEV__) console.log('session replay', granted ? 'start' : 'stop', 'active:', await c.isSessionReplayActive());
+    } catch (err) {
+      if (__DEV__) console.warn('session replay error:', err instanceof Error ? err.message : String(err));
+    }
+  })();
 }
 
 type TrackArgs<E extends AnalyticsEventName> = AnalyticsEventMap[E] extends null

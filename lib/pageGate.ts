@@ -37,8 +37,12 @@ export type GateDecision = { allow: true } | { allow: false; reason: BlockReason
 
 /** Thresholds. Start here, then tune on real pages (books, handwritten notes, screens). */
 export const GATE_THRESHOLDS = {
+  /** A dense page: text covers a fifth of the frame, with a few words. */
   minTextCoverage: 0.2,
   minWords: 15,
+  /** A sparse page, such as a vocabulary table in large type: little coverage, but many words. */
+  minSparseTextCoverage: 0.05,
+  minSparseWords: 30,
   maxHumanCoverage: 0.02,
   /** Explicit classes summed: porn + hentai + sexy. */
   maxExplicitScore: 0.3,
@@ -63,9 +67,9 @@ export function decidePage(m: PageMeasurement | null): GateDecision {
 
   if (m.humanCoverage > GATE_THRESHOLDS.maxHumanCoverage) return { allow: false, reason: 'people' };
 
-  if (m.textCoverage < GATE_THRESHOLDS.minTextCoverage || m.wordCount < GATE_THRESHOLDS.minWords) {
-    return { allow: false, reason: 'no_text' };
-  }
+  const dense = m.textCoverage >= GATE_THRESHOLDS.minTextCoverage && m.wordCount >= GATE_THRESHOLDS.minWords;
+  const sparse = m.textCoverage >= GATE_THRESHOLDS.minSparseTextCoverage && m.wordCount >= GATE_THRESHOLDS.minSparseWords;
+  if (!dense && !sparse) return { allow: false, reason: 'no_text' };
 
   return { allow: true };
 }
