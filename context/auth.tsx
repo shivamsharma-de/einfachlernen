@@ -15,6 +15,24 @@ WebBrowser.maybeCompleteAuthSession();
 /** Result of a sign-in attempt. `reason` is a catalogue code, never the provider's message. */
 type SignInResult = { error?: string; cancelled?: boolean; reason?: SignInFailReason };
 
+/**
+ * Exchanges a PKCE code for a session. Shared by the in-flight Google sign-in and the
+ * /auth/callback route, so the same code is never redeemed twice (the second attempt
+ * would fail because the code verifier is already consumed).
+ */
+const pendingExchanges = new Map<string, Promise<{ error?: string }>>();
+
+export function completeOAuthCode(code: string): Promise<{ error?: string }> {
+  let pending = pendingExchanges.get(code);
+  if (!pending) {
+    pending = supabase.auth
+      .exchangeCodeForSession(code)
+      .then(({ error }) => (error ? { error: error.message } : {}));
+    pendingExchanges.set(code, pending);
+  }
+  return pending;
+}
+
 interface AuthContextType {
   session: Session | null;
   user: User | null;
@@ -137,12 +155,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { cancelled: true, reason: 'cancelled' };
     }
 
+    // Two shapes come back: `?code=` when the client uses PKCE, and tokens in the `#` fragment
+    // when it uses the implicit flow (supabase-js's default). Both are accepted.
     const url = new URL(result.url);
     const code = url.searchParams.get('code');
-    if (!code) return signInFailed('google', 'no_token');
+    const fragment = new URLSearchParams(url.hash.replace(/^#/, ''));
+    const accessToken = fragment.get('access_token');
+    const refreshToken = fragment.get('refresh_token');
 
-    const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
-    if (exchangeError) return { ...signInFailed('google', 'provider_error'), error: exchangeError.message };
+    if (code) {
+      const { error: exchangeError } = await completeOAuthCode(code);
+      if (exchangeError) return { ...signInFailed('google', 'provider_error'), error: exchangeError };
+    } else if (accessToken && refreshToken) {
+      const { error: sessionError } = await supabase.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken,
+      });
+      if (sessionError) return { ...signInFailed('google', 'provider_error'), error: sessionError.message };
+    } else {
+      return signInFailed('google', 'no_token');
+    }
 
     track('sign_in_completed', { method: 'google' });
     return {};
