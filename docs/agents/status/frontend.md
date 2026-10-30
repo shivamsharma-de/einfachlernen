@@ -144,3 +144,22 @@ One detail that will bite elsewhere: RN 0.86's types no longer declare
   local advance was reasoned through, the server reconciliation was not exercised.
 - **Android.** iOS only so far. `backfaceVisibility` is unreliable there, so the faces also
   cross-fade on opacity; worth one look on a device.
+
+## BUG-007 · email sign-in by one-time code · `app/(auth)/login.tsx`, `context/auth.tsx`
+
+**Old flow failed because:** the email box signed in with `signInWithPassword`, and nothing in the app
+creates or resets a password (`signUpWithEmail` was never called), so any address without a
+pre-made password account could not get in. Supabase's English messages (for example "Invalid login
+credentials") were shown straight in an Alert, which breaks the German-first copy rule.
+
+**New flow:** `sendEmailCode(email)` calls `signInWithOtp` (`shouldCreateUser: true`, no redirect URL);
+`verifyEmailCode(email, code)` calls `verifyOtp({ type: 'email' })`. Both return `Result<null>`, and the
+error text is German. The screen has an email step (Code senden) and a code step (six digits, Anmelden,
+Neuen Code anfordern, Andere E-Mail-Adresse), with loading, success and error states, and every tap
+target at least 44pt. Sign-in completes through the same `onAuthStateChange` path that Google uses, so
+`(auth)/_layout` and `index` route the learner. `signUpWithEmail` and `signInWithEmail` are removed.
+
+**Needs before it works live:** the magic-link email must contain `{{ .Token }}`. See the config note
+in the milestone report; not made here.
+
+**Verified statically only:** typecheck and vitest pass. Not run against a Supabase instance.

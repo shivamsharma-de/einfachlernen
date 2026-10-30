@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
-import { Session, User } from '@supabase/supabase-js';
+import { AuthError, AuthRetryableFetchError, Session, User } from '@supabase/supabase-js';
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
 import * as AppleAuthentication from 'expo-apple-authentication';
@@ -8,6 +8,7 @@ import { flushReviews } from '../lib/api';
 import { updateDisplayName } from '../lib/profile';
 import { supabase, Profile } from '../lib/supabase';
 import { identify, reset, setReplayConsent, track, type SignInFailReason, type SignInMethod } from '../lib/analytics';
+import type { Result } from '../types/contracts';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -20,14 +21,38 @@ interface AuthContextType {
   profile: Profile | null;
   loading: boolean;
   signInWithGoogle: () => Promise<SignInResult>;
-  signInWithEmail: (email: string, password: string) => Promise<SignInResult>;
   signInWithApple: () => Promise<SignInResult>;
-  signUpWithEmail: (email: string, password: string) => Promise<{ error?: string }>;
+  /** Emails a one-time code to the address. `error` is German and user-facing. */
+  sendEmailCode: (email: string) => Promise<Result<null>>;
+  /** Checks the code the learner typed. On success the session is set like any other sign-in. */
+  verifyEmailCode: (email: string, code: string) => Promise<Result<null>>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
+
+/** German, user-facing text for a failed request for an email code. Supabase's English message is never shown. */
+function sendCodeErrorText(error: AuthError): string {
+  if (error instanceof AuthRetryableFetchError) return 'Keine Verbindung. Bitte prüfe dein Internet und versuche es erneut.';
+  if (error.status === 429 || error.code === 'over_email_send_rate_limit' || error.code === 'over_request_rate_limit') {
+    return 'Zu viele Anfragen. Bitte warte einige Minuten und versuche es erneut.';
+  }
+  if (error.code === 'email_address_invalid') return 'Diese E-Mail-Adresse ist ungültig.';
+  return 'Der Code konnte nicht gesendet werden. Bitte erneut versuchen.';
+}
+
+/** German, user-facing text for a failed code check. */
+function verifyCodeErrorText(error: AuthError): string {
+  if (error instanceof AuthRetryableFetchError) return 'Keine Verbindung. Bitte prüfe dein Internet und versuche es erneut.';
+  if (error.code === 'otp_expired' || error.status === 403) {
+    return 'Der Code ist ungültig oder abgelaufen. Bitte prüfe ihn oder fordere einen neuen Code an.';
+  }
+  if (error.status === 429 || error.code === 'over_request_rate_limit') {
+    return 'Zu viele Versuche. Bitte warte einige Minuten und versuche es erneut.';
+  }
+  return 'Die Anmeldung ist fehlgeschlagen. Bitte erneut versuchen.';
+}
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
@@ -123,17 +148,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return {};
   }
 
-  async function signInWithEmail(email: string, password: string): Promise<SignInResult> {
+  /**
+   * Email one-time code (BUG-007). signInWithOtp creates the account on first use, so there is
+   * no separate sign-up step. No redirect URL: the learner types the code from the email.
+   */
+  async function sendEmailCode(email: string): Promise<Result<null>> {
     track('sign_in_started', { method: 'email' });
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) return { ...signInFailed('email', 'provider_error'), error: error.message };
-    track('sign_in_completed', { method: 'email' });
-    return {};
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: { shouldCreateUser: true },
+    });
+    if (error) {
+      track('sign_in_failed', { method: 'email', reason_code: 'provider_error' });
+      return { ok: false, error: sendCodeErrorText(error) };
+    }
+    return { ok: true, data: null };
   }
 
-  async function signUpWithEmail(email: string, password: string): Promise<{ error?: string }> {
-    const { error } = await supabase.auth.signUp({ email, password });
-    return error ? { error: error.message } : {};
+  /** Checks the typed code. The resulting session event routes the learner exactly as Google sign-in does. */
+  async function verifyEmailCode(email: string, code: string): Promise<Result<null>> {
+    const { error } = await supabase.auth.verifyOtp({ email, token: code, type: 'email' });
+    if (error) {
+      track('sign_in_failed', { method: 'email', reason_code: 'provider_error' });
+      return { ok: false, error: verifyCodeErrorText(error) };
+    }
+    track('sign_in_completed', { method: 'email' });
+    return { ok: true, data: null };
   }
 
   /** Apple sign-in (PRD F1.5). The raw nonce goes to Supabase; Apple only ever sees its hash. */
@@ -204,7 +244,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   return (
     <AuthContext.Provider value={{
       session, user, profile, loading,
-      signInWithGoogle, signInWithEmail, signUpWithEmail, signInWithApple,
+      signInWithGoogle, sendEmailCode, verifyEmailCode, signInWithApple,
       signOut, refreshProfile,
     }}>
       {children}
