@@ -255,6 +255,12 @@ otp_expiry = 3600
 # subject = "Your password has been changed"
 # content_path = "./templates/password_changed_notification.html"
 
+# Sends the 6-digit email OTP code used by sign-in (BUG-007). Without {{ .Token }} the
+# default template only contains a magic link, so no code reaches the user.
+[auth.email.template.magic_link]
+subject = "Dein Anmeldecode"
+content_path = "./supabase/templates/magic_link.html"
+
 [auth.sms]
 # Allow/disallow new user signups via SMS to your project.
 enable_signup = false
